@@ -1,56 +1,22 @@
 # ARS Setup
 
-Prerequisites and optional setup for Academic Research Skills. If you only need Markdown output and the default Claude Opus 4.7 pipeline, you can skip most of this — see "Minimum viable setup" below.
+Prerequisites and optional setup for Academic Research Skills on Copilot CLI.
 
 ---
 
 ## Minimum viable setup
 
-1. Install Claude Code (see below).
-2. Export `ANTHROPIC_API_KEY`.
-3. `claude` in this repo (or any project that has ARS in `.claude/skills/`).
+1. Install Copilot CLI (see below).
+2. Configure your provider API key (`COPILOT_PROVIDER_API_KEY` for BYOK, or use Copilot-managed models).
+3. Install ARS: `/plugin marketplace add Imbad0202/academic-research-skills` then `/plugin install academic-research-skills`.
+4. On first run, approve `setup-copilot-extension.sh` (one bash permission); extensions reload automatically and slash commands activate immediately within the same session.
+
+> **After plugin update:** If you run `/plugin update academic-research-skills@academic-research-skills`, the extension symlink auto-follows the updated source files.
+To activate the updated `extension.mjs`, run `/restart` or start a new session with `/clear`.
 
 That is enough for Markdown output + DOCX conversion instructions. Everything else in this document is optional.
 
 ---
-
-## Install Claude Code
-
-**Recommended: Native installer** (no Node.js required, auto-updates):
-
-```bash
-# macOS / Linux
-curl -fsSL https://claude.ai/install.sh | bash
-
-# Windows (PowerShell)
-irm https://claude.ai/install.ps1 | iex
-```
-
-<details>
-<summary>Alternative: npm install (deprecated)</summary>
-
-Requires Node.js 18+.
-
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-</details>
-
-## Set up API key
-
-Get an Anthropic API key at <https://console.anthropic.com/>.
-
-```bash
-# Claude Code will prompt for your API key on first run
-claude
-```
-
-Or set it as an environment variable:
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-xxxxx
-```
 
 ## DOCX output (optional)
 
@@ -164,7 +130,9 @@ Without `ARS_CROSS_MODEL` set, everything works exactly as before. The cross-mod
 
 ---
 
-## Installation methods
+## Installation methods (Claude Code reference)
+
+> Copilot CLI users: skip this section. For Copilot CLI, install via `/plugin marketplace add zzyu17/academic-research-skills-copilot` then `/plugin install academic-research-skills@academic-research-skills`.
 
 Claude discovers skills at `<install-root>/<skill-name>/SKILL.md`. This repo contains four separate skills, each with its own `SKILL.md`:
 

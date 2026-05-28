@@ -1,5 +1,7 @@
 # ARS 效能說明
 
+> **下方模型名稱僅供參考。** 推薦的模型名稱（Claude Opus 4.7 等）針對 Claude Code 參考版本。在 Copilot CLI 上，token 消耗量與平台無關，但模型可用性取決於您的 provider 設定（`COPILOT_PROVIDER_*` 環境變數或 Copilot 訂閱）。
+
 > **建議模型：Claude Opus 4.7**，搭配 **Max plan**（或同等配置）。Opus 4.7 採用 adaptive thinking，不需要手動指定 thinking budget。
 >
 > 完整學術 pipeline（10 階段）會消耗**大量 token** — 單次完整執行可能超過 200K 輸入 + 100K 輸出 token，視論文長度和修訂輪數而定。請依預算斟酌使用。
@@ -22,7 +24,11 @@
 
 *以 ~15,000 字論文、~60 篇引用為基準估算。實際消耗隨論文長度、修訂輪數、對話深度而異。費用以 Anthropic API 2026 年 4 月定價計算。*
 
-## 建議 Claude Code 設定
+## 平台特定設定
+
+> 下方的「建議 Claude Code 設定」僅適用於 Claude Code 參考版本。在 Copilot CLI 上，子 agent 派工由 `task()` 工具處理，不需要這些 Claude 專屬旗標。
+
+### 建議 Claude Code 設定（參考）
 
 | 設定 | 功能說明 | 啟用方式 | 官方文件 |
 |---|---|---|---|
@@ -31,7 +37,9 @@
 
 > **⚠️ Skip Permissions 注意事項**：此旗標會停用所有工具使用的確認對話框。請自行斟酌使用 — 在可信任的長時間 pipeline 中非常方便，但會移除手動審核的安全機制。僅在你確定接受 Claude 自動執行檔案讀寫、shell 指令等操作時才啟用。
 
-### v3.7.0 Plugin agent 與模型路由
+### v3.7.0 Plugin agent 與模型路由（Claude Code 參考）
+
+> 在 Copilot CLI 上，子 agent 透過 `task({agent_type: "general-purpose", model: "..."})` 派工，不使用 `model: inherit`（此為 Claude Code 專屬功能）。Copilot CLI 版本中已從發布的 agent 移除 `model: inherit` frontmatter。
 
 當 ARS 以 Claude Code plugin 方式安裝（`/plugin install academic-research-skills`）時，會把三個下游 worker agent 暴露為 plugin-shipped subagent：`synthesis_agent`、`research_architect_agent`、`report_compiler_agent`。三個 agent frontmatter 都標 `model: inherit`，意思是它們**繼承派工 session 的模型**而非寫死特定 floor：
 
@@ -80,7 +88,7 @@ Schema 13 sprint contract 把每個 reviewer agent 切成 Phase 1（不見論文
 
 1. Session A 跑完一個 stage 到 FULL checkpoint。
 2. 從 checkpoint 通知抄下 `[PASSPORT-RESET: hash=<hash>, stage=<completed>, next=<next>]` tag。
-3. 開新的 Claude Code session（session B），貼入 `resume_from_passport=<hash>`。支援可選覆蓋：`resume_from_passport=<hash> stage=<n> mode=<m>`。
+3. 開新的 Copilot CLI session（session B），貼入 `resume_from_passport=<hash>`。支援可選覆蓋：`resume_from_passport=<hash> stage=<n> mode=<m>`。
 4. Session B 只讀 passport ledger，不重播 session A 的對話。Orchestrator 找到相符的 `kind: boundary` entry，append 一個 `kind: resume` entry 完成消費，然後繼續。繼續的 stage 由以下順序決定：使用者在 resume 指令附上 `stage=` 時以其為準，否則當 boundary 帶 `pending_decision` 時由 orchestrator 先重新詢問使用者再用對應選項的 `next_stage`，否則才採用記錄的 `next` 欄位。所有選項都終止時，`next` 可以是 `null`。
 
 **何時重置比延續划算：**
@@ -105,7 +113,7 @@ Resume 指令只定義 hash 與可選的 stage/mode 覆蓋：
 resume_from_passport=<hash> [stage=<n>] [mode=<m>]
 ```
 
-Resume 指令本身沒有路徑語法。客製 passport 位置在專案的 `CLAUDE.md` 設定，或由整合方的工具在呼叫 orchestrator 前處理。
+Resume 指令本身沒有路徑語法。客製 passport 位置在專案的指引文件設定，或由整合方的工具在呼叫 orchestrator 前處理。
 
 **實測 token 節省：** 尚待真實 `systematic-review` 搭配儀器化測量。取得實測資料後會回填本節。目前不做任何數值宣稱。完整協議見 [`../academic-pipeline/references/passport_as_reset_boundary.md`](../academic-pipeline/references/passport_as_reset_boundary.md)。
 

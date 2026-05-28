@@ -1,5 +1,7 @@
 # ARS Performance Notes
 
+> **Model references below are illustrative.** The recommended model names (Claude Opus 4.7, etc.) refer to the Claude Code reference distribution. On Copilot CLI, token consumption is platform-agnostic but model availability depends on your provider configuration (`COPILOT_PROVIDER_*` env vars or Copilot subscription).
+
 > **Recommended model: Claude Opus 4.7** with **Max plan** (or equivalent configuration). Opus 4.7 uses adaptive thinking; you no longer set a fixed thinking budget.
 >
 > The full academic pipeline (10 stages) consumes a **large amount of tokens** — a single end-to-end run can exceed 200K input + 100K output tokens depending on paper length and revision rounds. Budget accordingly.
@@ -22,7 +24,11 @@
 
 *Estimates based on a ~15,000-word paper with ~60 references. Actual usage varies with paper length, revision rounds, and dialogue depth. Costs at Anthropic API pricing as of April 2026.*
 
-## Recommended Claude Code settings
+## Platform-specific settings
+
+> The "Recommended Claude Code settings" below apply to the Claude Code reference distribution only. On Copilot CLI, sub-agent dispatch is handled by the `task()` tool and does not require these Claude-specific flags.
+
+### Recommended Claude Code settings (reference)
 
 | Setting | What it does | How to enable | Docs |
 |---|---|---|---|
@@ -31,7 +37,9 @@
 
 > **⚠️ Skip Permissions**: This flag disables all tool-use confirmation dialogs. Use at your own discretion — it is convenient for trusted, long-running pipelines but removes the safety net of manual approval. Only enable this in environments where you are comfortable with Claude executing file reads, writes, and shell commands without asking first.
 
-### v3.7.0 Plugin agents and model routing
+### v3.7.0 Plugin agents and model routing (Claude Code reference)
+
+> On Copilot CLI, sub-agents are dispatched via `task({agent_type: "general-purpose", model: "..."})` and do not use `model: inherit` (which is Claude Code-specific). The `model: inherit` frontmatter has been removed from shipped agents in the Copilot CLI distribution.
 
 When ARS is installed as a Claude Code plugin (`/plugin install academic-research-skills`), three downstream worker agents are exposed as plugin-shipped subagents: `synthesis_agent`, `research_architect_agent`, and `report_compiler_agent`. Each declares `model: inherit` in its frontmatter, which means they run under the **dispatching session's model** rather than a pinned floor:
 
@@ -80,7 +88,7 @@ When `ARS_PASSPORT_RESET=1` is set, every FULL checkpoint becomes a context-rese
 
 1. Run a stage to FULL checkpoint in session A.
 2. Copy the `[PASSPORT-RESET: hash=<hash>, stage=<completed>, next=<next>]` tag from the checkpoint notification.
-3. Start a fresh Claude Code session (session B) and paste `resume_from_passport=<hash>`. Optional overrides: `resume_from_passport=<hash> stage=<n> mode=<m>`.
+3. Start a fresh Copilot CLI session (session B) and paste `resume_from_passport=<hash>`. Optional overrides: `resume_from_passport=<hash> stage=<n> mode=<m>`.
 4. Session B loads only the passport ledger; no replay of session A's turns. The orchestrator locates the matching `kind: boundary` entry, appends a `kind: resume` entry to consume it, and continues. The resumed stage is determined by: a `stage=` CLI override if supplied, else the matched option's `next_stage` when the boundary carries a `pending_decision` (the orchestrator re-prompts the user first), else the recorded `next` field. `next` MAY be `null` when all decision branches terminate.
 
 **When reset beats continuation:**
@@ -105,7 +113,7 @@ The resume command only defines the hash and optional stage/mode overrides:
 resume_from_passport=<hash> [stage=<n>] [mode=<m>]
 ```
 
-There is no path syntax on the resume command itself. Custom passport locations are configured in the project's `CLAUDE.md` or handled by the integrator's tooling before the orchestrator is invoked.
+There is no path syntax on the resume command itself. Custom passport locations are configured in the project's instructions file or handled by the integrator's tooling before the orchestrator is invoked.
 
 **Empirical token savings:** measurement pending a real `systematic-review` run with instrumentation. This section will be updated with observed token deltas once available; until then, no numeric claim is made. See [`../academic-pipeline/references/passport_as_reset_boundary.md`](../academic-pipeline/references/passport_as_reset_boundary.md) for the full protocol.
 

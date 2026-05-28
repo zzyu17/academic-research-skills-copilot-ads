@@ -1,36 +1,33 @@
-# Quick Start
+# Quick Start — Copilot CLI
 
 Get from zero to your first AI-assisted research in 3 steps.
 
 ## Step 1: Install
 
-```bash
-# Install Claude Code
-curl -fsSL https://claude.ai/install.sh | bash
+In your Copilot CLI session:
 
-# Clone this repo somewhere stable
-git clone https://github.com/Imbad0202/academic-research-skills.git ~/academic-research-skills
-
-# Install each of the four skills into your project's .claude/skills/
-cd /path/to/your/project
-mkdir -p .claude/skills
-ln -s ~/academic-research-skills/deep-research .claude/skills/deep-research
-ln -s ~/academic-research-skills/academic-paper .claude/skills/academic-paper
-ln -s ~/academic-research-skills/academic-paper-reviewer .claude/skills/academic-paper-reviewer
-ln -s ~/academic-research-skills/academic-pipeline .claude/skills/academic-pipeline
+```text
+/plugin marketplace add zzyu17/academic-research-skills-copilot
+/plugin install academic-research-skills@academic-research-skills
 ```
 
-Each skill must sit at `.claude/skills/<skill-name>/SKILL.md` for Claude Code to discover it. See [docs/SETUP.md](docs/SETUP.md) for the copy-based alternative (Option B) and other installation methods (global `~/.claude/skills/`, Cowork, claude.ai).
+## Step 2: Set up the extension (first session only)
 
-## Step 2: Launch
+When you start your next Copilot CLI session with an academic prompt, the `ars-bootstrap` skill auto-triggers. It will:
 
-```bash
-claude
-```
+1. Detect that the ARS extension is not yet registered
+2. Ask you to approve running `scripts/setup-copilot-extension.sh` (one bash permission)
+3. Create the extension symlink and `.bootstrapped` marker
+4. Reload extensions automatically — 13 slash commands (`/ars-full`, `/ars-plan`, etc.) are activated immediately within the same session
+
+On all subsequent sessions, the bootstrap skill exits silently — routing rules are injected into agent context without any user-facing prompt.
+
+> **After plugin update:** If you run `/plugin update academic-research-skills@academic-research-skills`, the extension symlink auto-follows the updated source files.
+To activate the updated `extension.mjs`, run `/restart` or start a new session with `/clear`.
 
 ## Step 3: Start researching
 
-Tell Claude what you want to do. It will automatically pick the right skill and mode.
+Tell Copilot what you want to do. It will automatically pick the right skill and mode.
 
 ### Example: Guided research (Socratic mode)
 
@@ -39,7 +36,7 @@ You: "I have a vague idea about AI's impact on higher education quality assuranc
       but I'm not sure how to frame the research question. Can you guide me?"
 ```
 
-Claude will enter Socratic mode — asking questions to help you clarify your thinking, not giving you answers directly. After 5-15 rounds of dialogue, you'll have a focused research question and methodology direction.
+Copilot enters Socratic mode — asking questions to help you clarify your thinking. After 5-15 rounds, you'll have a focused research question.
 
 ### Example: Write a paper
 
@@ -54,11 +51,14 @@ You: "Help me write a paper about the impact of declining birth rates
 You: "Review this paper" (then paste or attach the paper)
 ```
 
-### Example: Full pipeline (research → write → review → revise → publish)
+### Example: Full pipeline
 
 ```
 You: "I want to produce a complete research paper about how agentic AI
       is reshaping student learning outcome measurement"
+
+Or use the slash command:
+/ars-full
 ```
 
 This triggers the full 10-stage pipeline. Budget ~$4-6 in API costs and 2-4 hours of collaborative work.
@@ -67,16 +67,35 @@ This triggers the full 10-stage pipeline. Budget ~$4-6 in API costs and 2-4 hour
 
 | I want to... | Use this |
 |-------------|----------|
-| Explore a vague idea | `deep-research` socratic mode — just describe your interest |
-| Get a quick literature summary | `deep-research` quick mode |
-| Do a systematic review (PRISMA) | `deep-research` systematic-review mode |
-| Write a paper from scratch | `academic-paper` full mode |
-| Plan a paper chapter by chapter | `academic-paper` plan mode |
-| Get my paper reviewed | `academic-paper-reviewer` full mode |
-| Do everything end-to-end | `academic-pipeline` — say "I want a complete research paper" |
+| Explore a vague idea | `/academic-research-skills:deep-research` socratic mode |
+| Get a quick literature summary | `/academic-research-skills:deep-research` quick mode |
+| Do a systematic review (PRISMA) | `/academic-research-skills:deep-research` systematic-review mode |
+| Write a paper from scratch | `/ars-full` or `/academic-research-skills:academic-paper` full mode |
+| Plan a paper chapter by chapter | `/ars-plan` |
+| Get my paper reviewed | `/ars-reviewer` |
+| Do everything end-to-end | `/ars-full` |
+
+## Slash commands
+
+**Mode-specific** (13, requires extension setup):
+`/ars-full`, `/ars-plan`, `/ars-outline`, `/ars-revision`, `/ars-revision-coach`, `/ars-abstract`, `/ars-lit-review`, `/ars-reviewer`, `/ars-format-convert`, `/ars-citation-check`, `/ars-disclosure`, `/ars-mark-read`, `/ars-unmark-read`
+
+**Skill entry points** (5, available immediately after plugin install):
+`/academic-research-skills:deep-research`, `/academic-research-skills:academic-paper`, `/academic-research-skills:academic-paper-reviewer`, `/academic-research-skills:academic-pipeline`, `/academic-research-skills:ars-bootstrap`
+
+## Model routing (optional)
+
+For BYOK users, tiered model dispatch:
+
+```bash
+export ARS_MODEL_ARCHITECT="claude-opus-4-5"    # architect tier
+export ARS_MODEL_EXECUTION="claude-sonnet-4-5"   # execution tier
+```
+
+Without env vars, all dispatches use the session default model.
 
 ## What's next?
 
-- [Full README](README.md) — all features, modes, installation options, and changelog
+- [Full README](README.md) — all features, modes, and changelog
 - [中文版](README.zh-TW.md) — Traditional Chinese version
 - [Pipeline showcase](examples/showcase/) — real artifacts from a complete pipeline run

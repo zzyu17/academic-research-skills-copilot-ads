@@ -1,6 +1,39 @@
-# Changelog
+# Changelog — Copilot CLI Port
 
-All notable changes to this project will be documented in this file.
+All notable changes to the Copilot CLI distribution of Academic Research Skills.
+
+## [3.9.4.2-copilot] — 2026-05-28
+
+### Added
+- `extension.mjs`: 13 CommandDefinitions + 4 lifecycle hooks (onSessionStart, onPostToolUse, onErrorOccurred, onPreToolUse reserved)
+- `skills/ars-bootstrap/SKILL.md`: Session-start bootstrap skill with silent `.bootstrapped` gate
+- `package.json`: Copilot CLI plugin metadata (`"type": "module"`)
+- `AGENTS.md`: Contributor guidelines
+- `scripts/setup-copilot-extension.sh`: One-time extension registration
+
+### Changed
+- 4 SKILL.md files: Replaced `.claude/CLAUDE.md` backpointers with `ars-bootstrap` skill references
+- 3 agent templates: Removed `model: inherit` frontmatter (Copilot CLI has no model inheritance)
+- Plugin manifests: Updated descriptions for Copilot CLI
+- All documentation: Rewritten for Copilot CLI audience
+
+### Removed
+- `.claude/` directory (CLAUDE.md replaced by ars-bootstrap skill)
+- `commands/` directory (13 slash commands moved to extension.mjs CommandDefinitions)
+- `hooks/` directory (hooks moved to extension.mjs)
+- `scripts/announce-ars-loaded.sh` (logic moved to extension.mjs onSessionStart)
+
+### Ported
+- All 42 agent templates (3 adapted, 39 unchanged)
+- All 43 shared files (vendored unmodified)
+- All ~130 scripts (vendored; announce-ars-loaded.sh removed)
+- All test files (no Python changes)
+
+---
+
+# Changelog (Upstream Claude Code)
+
+All notable changes to the upstream Claude Code distribution of this project.
 
 ## [Unreleased]
 

@@ -1,56 +1,22 @@
 # ARS 安裝設定
 
-Academic Research Skills 的前置需求與選用設定。只需要 Markdown 輸出與預設 Claude Opus 4.7 pipeline 的人，大部分內容可以略過。請見下方「最小可行設定」。
+> **這是 Copilot CLI 分支版本。** 下方的安裝設定大部分為 Claude Code 參考版本內容。Copilot CLI 使用者請見頂部的「最小可行設定」，其餘章節為 Claude Code 參考。
 
 ---
 
-## 最小可行設定
+## 最小可行設定 (Copilot CLI)
 
-1. 安裝 Claude Code（見下方）。
-2. 設定 `ANTHROPIC_API_KEY`。
-3. 在這個 repo（或任何把 ARS 放在 `.claude/skills/` 下的專案）執行 `claude`。
+1. 安裝 Copilot CLI（見 [GitHub Copilot CLI 文件](https://docs.github.com/en/copilot/copilot-cli)）。
+2. 設定你的 provider API key（BYOK 模式使用 `COPILOT_PROVIDER_API_KEY`，或使用 Copilot 訂閱模型）。
+3. 安裝 ARS：`/plugin marketplace add zzyu17/academic-research-skills-copilot` 然後 `/plugin install academic-research-skills@academic-research-skills`。
+4. 首次執行時，批准 `setup-copilot-extension.sh`（一次 bash 授權）；擴展會自動重新載入，斜槓命令立即啟用。
 
-這樣就夠了。可得到 Markdown 輸出與 DOCX 轉換說明。以下其他內容都是選用。
+> **外掛更新後：** 若執行 `/plugin update academic-research-skills@academic-research-skills`，擴展符號連結會自動指向更新後的來源檔案。
+若要啟用更新後的 `extension.mjs`，請執行 `/restart`，或使用 `/clear` 啟動新 session。
+
+這樣就夠了。可得到 Markdown 輸出與 DOCX 轉換說明。本文件其餘內容皆為選用。
 
 ---
-
-## 安裝 Claude Code
-
-**建議：原生安裝程式**（不需要 Node.js，自動更新）：
-
-```bash
-# macOS / Linux
-curl -fsSL https://claude.ai/install.sh | bash
-
-# Windows (PowerShell)
-irm https://claude.ai/install.ps1 | iex
-```
-
-<details>
-<summary>替代方案：npm 安裝（已棄用）</summary>
-
-需要 Node.js 18+。
-
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-</details>
-
-## 設定 API Key
-
-你需要一個 Anthropic API key，請至 <https://console.anthropic.com/> 取得。
-
-```bash
-# Claude Code will prompt for your API key on first run
-claude
-```
-
-或設定環境變數：
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-xxxxx
-```
 
 ## DOCX 輸出（選用）
 
