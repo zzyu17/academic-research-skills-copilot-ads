@@ -372,7 +372,7 @@ Expected: `Syntax OK`
   "description": "Production-grade academic research pipeline for Copilot CLI: research → write → review → revise → finalize. 4 skills, 25+ modes, 42-agent ensemble, v3.7.3 + v3.8 L3 claim-faithfulness gate, v3.9.0 cross-index triangulation, v3.9.2 phase boundary fence.",
   "type": "module",
   "author": {
-    "name": "Cheng-I Wu",
+    "name": "Zhenyu Zhang",
     "url": "https://github.com/Imbad0202"
   },
   "homepage": "https://github.com/Imbad0202/academic-research-skills",
@@ -469,7 +469,7 @@ Materials: Editorial Decision Letter, Revision Roadmap, Per-reviewer detailed co
 ## Version Info
 - **Suite version**: 3.9.4.2-copilot
 - **Last Updated**: 2026-05-28
-- **Author**: Cheng-I Wu
+- **Author**: Zhenyu Zhang
 - **License**: CC-BY-NC 4.0
 ```
 

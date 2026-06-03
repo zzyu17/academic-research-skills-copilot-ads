@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Imbad0202/academic-research-skills/shared/contracts/passport/citation_provenance.schema.json",
+  "$id": "https://github.com/zzyu17/academic-research-skills-copilot/shared/contracts/passport/citation_provenance.schema.json",
   "title": "Material Passport Citation Provenance (phase2_investigation/citation_provenance.yaml)",
   "description": "Aggregate schema for first-party citation verification results. Per spec §3.4. NOT added to literature_corpus_entry.schema.json (closed contract).",
   "type": "object",

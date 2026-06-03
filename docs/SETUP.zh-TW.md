@@ -93,7 +93,7 @@ ARS 暴露若干 opt-in flag，全部預設 OFF；設定後僅影響當前 sessi
 
 ---
 
-## 跨模型驗證（選用）
+## 跨模型驗證（選用，Claude Code 參考）
 
 ARS 使用 Claude Opus 4.7 即可完整運作。想要更高信心，可選擇啟用第二 AI 模型來獨立驗證完整性檢查，並挑戰魔鬼代言人。
 
@@ -130,7 +130,7 @@ claude
 
 ---
 
-## 安裝方式
+## 安裝方式 (Claude Code 參考)
 
 Claude 會在 `<install-root>/<skill-name>/SKILL.md` 尋找 skills。這個 repo 包含四個獨立 skills，每個都有自己的 `SKILL.md`：
 

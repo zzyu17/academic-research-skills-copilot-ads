@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Imbad0202/academic-research-skills/shared/contracts/passport/temporal_audit_results.schema.json",
+  "$id": "https://github.com/zzyu17/academic-research-skills-copilot/shared/contracts/passport/temporal_audit_results.schema.json",
   "title": "Material Passport Temporal Audit Results (phase4_composition/temporal_audit_results.yaml)",
   "description": "Aggregate schema for v3.9.4 temporal verification findings. NOT a defect_stage of v3.8 claim_audit_result; sibling aggregate (per CC2). Per spec §3.2.",
   "type": "object",

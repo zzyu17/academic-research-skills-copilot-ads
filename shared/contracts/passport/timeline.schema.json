@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Imbad0202/academic-research-skills/shared/contracts/passport/timeline.schema.json",
+  "$id": "https://github.com/zzyu17/academic-research-skills-copilot/shared/contracts/passport/timeline.schema.json",
   "title": "Material Passport Timeline (phase2_investigation/timeline.yaml)",
   "description": "Aggregate schema for the v3.9.4 timeline sidecar. Per spec §3.1 and §4. Owned by timeline_extraction_agent; literature_corpus_entry.schema.json is unmodified.",
   "type": "object",

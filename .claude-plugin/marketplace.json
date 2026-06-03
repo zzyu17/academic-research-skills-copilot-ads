@@ -1,8 +1,8 @@
 {
   "name": "academic-research-skills",
   "owner": {
-    "name": "Cheng-I Wu",
-    "url": "https://github.com/Imbad0202"
+    "name": "Zhenyu Zhang",
+    "url": "https://github.com/zzyu17"
   },
   "description": "Academic Research Skills — production-grade research, writing, peer review, and pipeline orchestration for Copilot CLI.",
   "plugins": [

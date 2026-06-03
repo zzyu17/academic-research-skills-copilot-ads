@@ -93,7 +93,7 @@ ARS exposes a few opt-in flags. All default to OFF; setting them changes behavio
 
 ---
 
-## Cross-model verification (optional)
+## Cross-model verification (optional, Claude Code reference)
 
 ARS works with Claude Opus 4.7 alone. For higher confidence, you can optionally enable a second AI model to independently verify integrity checks and challenge the devil's advocate.
 

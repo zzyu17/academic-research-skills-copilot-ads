@@ -64,7 +64,8 @@ function resolveUserPrompt(context, allowRecentFallback) {
 }
 
 function buildVisibleSlashPrompt(context, userPrompt) {
-  const base = `/${context.command}`;
+  const commandName = (context?.commandName || "").replace(/^\//, "").trim();
+  const base = commandName ? `/${commandName}` : (context?.command || "").trim();
   const trimmed = userPrompt?.trim();
   return trimmed ? `${base} ${trimmed}` : base;
 }
@@ -76,10 +77,10 @@ function buildDispatchContext(skill, mode, tier) {
 
 async function dispatchSkillCommand(context, skill, mode, tier) {
   const userPrompt = resolveUserPrompt(context, true);
+  const visiblePrompt = buildVisibleSlashPrompt(context, userPrompt);
   pendingDispatchContext = buildDispatchContext(skill, mode, tier);
   await session.send({
-    prompt: userPrompt || context.command,
-    displayPrompt: buildVisibleSlashPrompt(context, userPrompt),
+    prompt: visiblePrompt,
   });
 }
 
@@ -172,10 +173,10 @@ const session = await joinSession({
       handler: async (context) => {
         const routing = modelRoutingHint("execution");
         const userPrompt = resolveUserPrompt(context, false);
+        const visiblePrompt = buildVisibleSlashPrompt(context, userPrompt);
         pendingDispatchContext = `[ARS] Record human-read signal for citation keys. Run: python3 scripts/ars_mark_read.py with the active Material Passport path. Per v3.6.8 §3.6, stores signal in <passport-stem>_human_read_log.yaml. literature_corpus[] is NEVER mutated.${routing}`;
         await session.send({
-          prompt: userPrompt || context.command,
-          displayPrompt: buildVisibleSlashPrompt(context, userPrompt),
+          prompt: visiblePrompt,
         });
       },
     },
@@ -185,10 +186,10 @@ const session = await joinSession({
       handler: async (context) => {
         const routing = modelRoutingHint("execution");
         const userPrompt = resolveUserPrompt(context, false);
+        const visiblePrompt = buildVisibleSlashPrompt(context, userPrompt);
         pendingDispatchContext = `[ARS] Rescind human-read signal for citation keys. Run: python3 scripts/ars_unmark_read.py with the active Material Passport path. Per v3.6.8 §3.6.${routing}`;
         await session.send({
-          prompt: userPrompt || context.command,
-          displayPrompt: buildVisibleSlashPrompt(context, userPrompt),
+          prompt: visiblePrompt,
         });
       },
     },

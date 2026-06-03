@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Imbad0202/academic-research-skills/shared/contracts/passport/literature_corpus_entry.schema.json",
+  "$id": "https://github.com/zzyu17/academic-research-skills-copilot/shared/contracts/passport/literature_corpus_entry.schema.json",
   "title": "Material Passport Literature Corpus Entry",
   "description": "One entry in Material Passport Schema 9 literature_corpus[]. Represents a single piece of literature the user has included in their corpus. Produced by user-written adapters; see academic-pipeline/references/adapters/overview.md. ARS does NOT produce these entries itself.",
   "type": "object",

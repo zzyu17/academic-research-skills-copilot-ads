@@ -72,7 +72,7 @@ Either shape is accepted under the same maintainer-facing conditions:
 
 ### Maintainer
 
-The repo is maintained by [Cheng-I Wu](https://github.com/Imbad0202) (HEEACT). The maintainer has final say on all merges.
+The repo is maintained by [Zhenyu Zhang](https://github.com/zzyu17) (HEEACT). The maintainer has final say on all merges.
 
 ### Decision principles
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Imbad0202/academic-research-skills/shared/contracts/passport/reset_ledger_entry.schema.json",
+  "$id": "https://github.com/zzyu17/academic-research-skills-copilot/shared/contracts/passport/reset_ledger_entry.schema.json",
   "title": "Passport Reset Ledger Entry",
   "description": "One append-only ledger entry in reset_boundary[]. Two kinds: 'boundary' (recorded at a FULL checkpoint when ARS_PASSPORT_RESET=1) and 'resume' (recorded when resume_from_passport consumes a boundary entry). See academic-pipeline/references/passport_as_reset_boundary.md.",
   "oneOf": [

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Imbad0202/academic-research-skills/shared/contracts/audit/audit_verdict.schema.json",
+  "$id": "https://github.com/zzyu17/academic-research-skills-copilot/shared/contracts/audit/audit_verdict.schema.json",
   "title": "Codex Audit Verdict File",
   "description": "Schema for <run_id>.verdict.yaml — the human-readable verdict file produced by the wrapper after parsing the JSONL stream's single item.completed.agent_message event (per §3.3 / §3.5). This is the policy surface the orchestrator reads for ship/block decisions; JSONL is raw evidence (Layer 2) and sidecar is environmental evidence (Layer 3). Cross-field invariants (PASS/MINOR/MATERIAL/AUDIT_FAILED count consistency; finding_counts agrees with findings[]) are lint-enforced in scripts/check_audit_artifact_consistency.py (Phase 6.3 §3.7 family A rows A1/A2/A5/A6) — this schema enforces the per-file shape so wrapper-side lint can reject malformed verdicts before they reach the orchestrator.",
 

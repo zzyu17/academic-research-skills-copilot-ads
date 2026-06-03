@@ -37,8 +37,8 @@ If the file does NOT exist:
   4. Call `extensions_reload({})` to reload extensions. The 13 slash commands are activated immediately within the same session.
 
 If the file EXISTS but `.bootstrapped` is missing (edge case: manual symlink):
-  Create the marker: `touch ~/.copilot/extensions/ars/.bootstrapped`
-  Then exit silently.
+  1. Create the marker: `touch ~/.copilot/extensions/ars/.bootstrapped`
+  2. Then exit silently.
 
 After setup is complete and `.bootstrapped` exists, the bootstrap skill runs silently on every subsequent session — routing rules are injected into agent context without any user-facing prompt.
 
@@ -154,5 +154,5 @@ Materials: Editorial Decision Letter, Revision Roadmap, Per-reviewer detailed co
 ## Version Info
 - **Suite version**: 3.9.4.2-copilot
 - **Last Updated**: 2026-05-28
-- **Author**: Cheng-I Wu
+- **Author**: Zhenyu Zhang
 - **License**: CC-BY-NC 4.0
