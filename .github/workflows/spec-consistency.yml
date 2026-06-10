@@ -54,9 +54,20 @@ jobs:
         # fails fast.
         run: python3 scripts/check_ci_pytest_manifest.py
 
+      - name: Ensure jq is available (#349)
+        # The cross-model grounding-guard tests (run via the manifest below) shell out to `jq`
+        # to exercise the canonical .jq filters and REQUIRE it (they fail clearly rather than
+        # skip — a skipped safety test reads as covered). jq is preinstalled on ubuntu-latest,
+        # but make the dependency explicit so a runner-image change can't silently break it.
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+          jq --version
+
       - name: Run CI pytest manifest (#156)
-        # Single entry point for the 12 pytest invocations spec-consistency.yml
-        # used to run file-by-file. Each manifest entry is wrapped in a
+        # Single entry point for the pytest invocations spec-consistency.yml used
+        # to run file-by-file. Each manifest entry is wrapped in a
         # `::group::<id>` annotation so the GitHub UI collapses one block
         # per invocation. Manifest at scripts/_ci_pytest_manifest.toml.
         env:
@@ -149,6 +160,9 @@ jobs:
       - name: Validate corpus consumer protocol (v3.6.5+)
         run: python3 scripts/check_corpus_consumer_protocol.py
 
+      - name: Validate domain evidence profile documentation surface (#259)
+        run: python3 scripts/check_domain_evidence_profile.py
+
       - name: Check adapter docs up-to-date
         run: python3 scripts/sync_adapter_docs.py --check
 
@@ -183,7 +197,7 @@ jobs:
 
       - name: Validate v3.7.1 audit Scope Report block (Step 2 / D2)
         # Step 2 of v3.7.1: enforces spec §3.2 Scope Report contract on the
-        # codex audit prompt template — Section 0 header + four required
+        # cross-model audit prompt template — Section 0 header + four required
         # content fields + three aggregate-status splits + forbidden
         # combined-aggregate "PASSED" verb (spec line 152).
         run: python3 scripts/check_v3_6_8_audit_scope_block.py
@@ -218,6 +232,33 @@ jobs:
           PYTHONPATH: .
         run: python scripts/check_v3_9_0_triangulation.py
 
+      - name: Firm-rules sync + ID-collision lint (v3.10 PR-A, #127)
+        # Pins the canonical R-L3-2-* (contamination) / R-CIM-* (claim-manifest)
+        # firm-rule wording in shared/references/firm_rules.md against the agent
+        # prompt mirrors, and guards the v3.10 PR-A disambiguation (the two rule
+        # families no longer share the R-L3-2-A/B/C ID). v3.10 PR-B adds a
+        # contradiction guard on the contamination mirrors (no unqualified
+        # "advisory only / never block" claim once strict can block). The pytest
+        # companion `test_check_firm_rules_sync.py` runs via the unified manifest.
+        env:
+          PYTHONPATH: .
+        run: python scripts/check_firm_rules_sync.py
+
+      - name: v3.10 policy-layer lint (#127 PR-B)
+        # Verifies the v3.10 terminal-policy-layer contract: venue_type /
+        # venue_type_provenance / venue_type_source schema fields (incl. the
+        # explicit `unknown` member + no `_inferred` provenance), the pair
+        # dependency branches, the trusted_source laundering guard, the standalone
+        # terminal_policies schema home (Inv. 11), the marker grammar (severity=
+        # HIGH-BLOCK only inside <!--ref-->, two shapes, policy_hash stamp), the
+        # generic formatter rule 11 + STAMP-ONLY two-gate, and temporal_integrity
+        # accepting only `advisory` (Inv. 3). Runs ALONGSIDE the v3.9.0 lint, not a
+        # rename. The pytest companion `test_check_v3_10_policy.py` runs via the
+        # unified manifest.
+        env:
+          PYTHONPATH: .
+        run: python scripts/check_v3_10_policy.py
+
       - name: Run v3.9.2 Phase Boundary coverage lint (#133)
         # Enforces 22 Bucket A agents have ## Phase Boundary (v3.9.2)
         # block, 16 Bucket B/C/D agents DON'T, and each Bucket A block
@@ -230,6 +271,39 @@ jobs:
         env:
           PYTHONPATH: .
         run: python3 scripts/check_v3_9_2_phase_boundary.py
+
+      - name: Run v3.10 #134 write-scope three-way name cross-check lint
+        # THE FAIL-OPEN GUARD for the Slice 1 write-scope hook. Asserts the 23 Bucket A
+        # agent names match across the classification roster, the scope manifest keys,
+        # and the on-disk agent frontmatter `name` fields. A drift would silently fail
+        # the PreToolUse hook OPEN (treat a fenced agent as unconstrained). The pytest
+        # companions test_ars_write_scope_guard.py + test_check_v3_10_134_write_scope.py
+        # (hook decision tests + lint mutation tests) run via the unified manifest (#156).
+        # Spec: docs/design/2026-06-01-ars-134-conductor-rescope-deterministic-write-guard-spec.md
+        env:
+          PYTHONPATH: .
+        run: python3 scripts/check_v3_10_134_write_scope.py
+
+      - name: Validate ARS plugin hooks.json wires the write-scope guard
+        # Pins hooks/hooks.json to (a) be valid JSON, (b) carry a PreToolUse entry whose
+        # matcher covers the structured write tools + Bash, and (c) invoke the guard
+        # script via ${CLAUDE_PLUGIN_ROOT}. Catches an accidental hook-config regression
+        # that would silently disable the guard.
+        run: |
+          python3 - <<'PY'
+          import json
+          h = json.load(open("hooks/hooks.json"))
+          pre = h.get("hooks", {}).get("PreToolUse", [])
+          assert pre, "hooks.json has no PreToolUse entry"
+          entry = pre[0]
+          matcher = entry.get("matcher", "")
+          for tool in ("Write", "Edit", "MultiEdit", "Bash"):
+              assert tool in matcher, f"PreToolUse matcher missing {tool!r}: {matcher!r}"
+          cmds = " ".join(hk.get("command", "") for hk in entry.get("hooks", []))
+          assert "ars_write_scope_guard.py" in cmds, "PreToolUse does not invoke the guard script"
+          assert "${CLAUDE_PLUGIN_ROOT}" in cmds, "guard command must use ${CLAUDE_PLUGIN_ROOT}"
+          print("hooks.json PreToolUse write-scope guard wiring OK")
+          PY
 
       - name: Run v3.9.4 temporal verification lint (#135)
         # Verifies check_v3_9_4_temporal_verification.py against all bundled
@@ -267,6 +341,15 @@ jobs:
           PYTHONPATH: .
         run: python3 -m unittest scripts.test_check_v3_8_annotation_literal_sync -v
 
+      - name: Check cross-model grounding-guard doc sync (#346 / #349)
+        # Drift guard: asserts shared/cross_model_verification.md references the canonical jq
+        # filters under scripts/cross_model_verification/ via `jq -f` and still carries the
+        # NOT_SEARCHED + CROSS-MODEL-ERROR safety branches — so a doc edit can't re-inline a
+        # weaker filter or drop a branch while the behavioral tests keep passing against the
+        # untouched .jq files. Behavior of the filters themselves is pinned by the manifest test
+        # 346-349-cross-model-grounding-guards.
+        run: python3 scripts/check_cross_model_verification_sync.py
+
       - name: Run v3.8 claim_audit pipeline + schema + uncited-assertion + manifest + finalizer + e2e + calibration tests (#103)
         # The v3.8 #103 test suite covers the L3 claim-faithfulness audit
         # contract end-to-end:
@@ -274,7 +357,7 @@ jobs:
         #     uncited / drift / constraint invariant families), pipeline
         #     routing (T-P1..T-P11 §4 step 1-6), uncited token rule
         #     (T-U1..T-U5 D4-c three-condition detector).
-        #   - Step 7 (round-2 codex P2 closure): manifest set-diff +
+        #   - Step 7 (round-2 review closure): manifest set-diff +
         #     constraint inheritance + MANIFEST-MISSING fallback
         #     (T-M1..T-M3 §7.3) + T-CO-1..T-CO-4 carry-overs.
         #   - Step 8: 8-row finalizer matrix (T-F1a..h + T-F2..T-F5 §7.5).
@@ -286,7 +369,7 @@ jobs:
         #     shape integrity; spec §7.7).
         #   - Step 11 (regression baseline): all 7 modules run together
         #     against the full diff to guarantee zero regression before
-        #     codex review (spec §7.8 + §13 step 11).
+        #     independent review (spec §7.8 + §13 step 11).
         # Without this CI step the audit contracts shipped from Steps 4-10
         # could regress silently. Spec:
         # docs/design/2026-05-15-issue-103-claim-alignment-audit-spec.md §7
@@ -344,4 +427,14 @@ jobs:
         env:
           PYTHONPATH: .
         run: python3 -m scripts.check_evals_gold_set evals/gold/citation_extraction
+
+      - name: Validate #268 nested-object Commitment Ledger
+        # Schema 11 parallel-list -> nested-object refactor (#268). N1-N5:
+        # seed extraction-field presence, no retired parallel-list keys,
+        # per-commitment lifecycle coherence, and no surviving index notation
+        # in the Schema 11 prose + re_review_mode_protocol surfaces.
+        # Spec: docs/design/2026-05-31-ars-268-schema11-nested-commitment-ledger-spec.md.
+        env:
+          PYTHONPATH: .
+        run: python3 -m scripts.check_268_nested_commitment_ledger
 
