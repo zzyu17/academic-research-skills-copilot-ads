@@ -1,6 +1,6 @@
 // extension.mjs — ARS Copilot CLI Extension
 // =============================================================================
-// Slash commands (13) + lifecycle hooks (onSessionStart, onPostToolUse,
+// Slash commands (14) + lifecycle hooks (onSessionStart, onPostToolUse,
 // onErrorOccurred). onPreToolUse is reserved for v3.10 parity.
 //
 // Uses Copilot CLI SDK: import { joinSession } from "@github/copilot-sdk/extension"
@@ -188,6 +188,19 @@ const session = await joinSession({
         const userPrompt = resolveUserPrompt(context, false);
         const visiblePrompt = buildVisibleSlashPrompt(context, userPrompt);
         pendingDispatchContext = `[ARS] Rescind human-read signal for citation keys. Run: python3 scripts/ars_unmark_read.py with the active Material Passport path. Per v3.6.8 §3.6.${routing}`;
+        await session.send({
+          prompt: visiblePrompt,
+        });
+      },
+    },
+    {
+      name: "ars-cache-invalidate",
+      description: "Invalidate the ARS cache for a specific cache key or scope",
+      handler: async (context) => {
+        const routing = modelRoutingHint("execution");
+        const userPrompt = resolveUserPrompt(context, false);
+        const visiblePrompt = buildVisibleSlashPrompt(context, userPrompt);
+        pendingDispatchContext = `[ARS] Cache Invalidate — use python3 scripts/ars_cache_invalidate.py to invalidate cache entries. Per v3.11.1 §3.6.${routing}`;
         await session.send({
           prompt: visiblePrompt,
         });

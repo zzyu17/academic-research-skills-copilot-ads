@@ -1,6 +1,6 @@
 ---
 name: ars-bootstrap
-description: "Academic Research Skills — unified entry point for research, writing, reviewing, and publishing academic papers. Coordinates 4 skills: deep-research (13-agent research team), academic-paper (12-agent writing pipeline), academic-paper-reviewer (5-reviewer peer review panel), and academic-pipeline (full 10-stage orchestrator). Triggers on: research, literature review, write paper, revise paper, peer review, academic pipeline, full workflow, end-to-end. 研究, 文獻回顧, 論文寫作, 學術論文, 修改論文, 完整流程."
+description: "Academic Research Skills — unified entry point for research, writing, reviewing, and publishing academic papers. Coordinates 4 skills: deep-research (13-agent research team), academic-paper (12-agent writing pipeline), academic-paper-reviewer (5-reviewer peer review panel), and academic-pipeline (full 10-stage orchestrator). Triggers on: research, literature review, write paper, revise paper, peer review, academic pipeline, full workflow, end-to-end, citation check, format convert, cache invalidate, commitment ledger, version reconcile, domain evidence, firm rules. 研究, 文獻回顧, 論文寫作, 學術論文, 修改論文, 完整流程, 引用檢查, 格式轉換."
 metadata:
   version: "1.0.0"
   last_updated: "2026-05-28"
