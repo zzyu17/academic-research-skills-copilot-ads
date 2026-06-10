@@ -322,7 +322,7 @@ Key failure path summary:
 | Insufficient literature | bibliography_agent finds < 5 sources | Expand search strategy, alternative keywords |
 | Methodology mismatch | RQ type misaligned with method capability | Return to Phase 1, suggest 3 alternative methods |
 | Devil's Advocate CRITICAL | Fatal logical flaw discovered | STOP, explain the issue, require correction |
-| Ethics BLOCKED | Serious ethical issue | STOP, list issues and remediation path |
+| Ethics BLOCKED | Critical integrity issue (not subject matter) | Stop the user once to confirm; list issues + remediation path; overridable with recorded reasoning |
 | Socratic non-convergence | > 10 rounds without convergence | Suggest switching to full mode |
 | User abandons mid-process | Explicitly states they don't want to continue | Save progress, provide re-entry path |
 | Only Chinese-language literature | English search returns empty | Switch to Chinese academic databases |
@@ -434,6 +434,7 @@ See `academic-pipeline/SKILL.md` for the complete workflow.
 | `examples/handoff_to_paper.md` | deep-research full mode handoff to academic-paper |
 | `examples/review_mode.md` | Review mode: 3-agent review pipeline for policy recommendation text |
 | `examples/fact_check_mode.md` | Fact-check mode: source verification of HEI claims with per-claim verdicts |
+| `examples/idea_diversity_coverage_gap_advisory.md` | #257 Socratic wording-pattern + lit-review distributional-skew advisories |
 
 ---
 
@@ -494,8 +495,8 @@ deep-research (systematic-review) + academic-paper -> PRISMA systematic review p
 
 | Item | Content |
 |------|---------|
-| Skill Version | 2.9.3 |
-| Last Updated | 2026-04-30 |
+| Skill Version | 2.9.4 |
+| Last Updated | 2026-05-18 |
 | Maintainer | Cheng-I Wu |
 | Dependent Skills | academic-paper v1.0+ (downstream) |
 
