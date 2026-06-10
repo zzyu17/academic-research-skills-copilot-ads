@@ -213,11 +213,36 @@ const session = await joinSession({
     },
 
     onPostToolUse: async (input) => {
-      // Pipeline state tracking — detect phase directory creation
-      const inputPath = input.toolArgs?.file_path || input.toolArgs?.path || "";
-      if (/phase\d+[a-z]?_/.test(inputPath)) {
-        // Reserved for future state-machine integration
+      // Scoped-Write Guard — detect Bucket A agents writing outside their scope
+      const writeTools = ['Edit', 'Write', 'Create'];
+      if (!writeTools.includes(input.toolName)) return {};
+
+      const { execSync } = await import('child_process');
+      const path = await import('path');
+      const pluginDir = path.resolve(__dirname, '..', '..');
+      const args = JSON.stringify({
+        tool: input.toolName,
+        target: input.toolArgs?.file_path || input.toolArgs?.filePath || '',
+        agent_context: input.agentContext || '',
+      });
+
+      try {
+        const result = execSync(
+          `python3 "${pluginDir}/scripts/ars_write_scope_guard.py" '${args}'`,
+          { timeout: 5000, encoding: 'utf8' }
+        );
+        const parsed = JSON.parse(result);
+        if (parsed.blocked) {
+          return {
+            suppressOutput: true,
+            additionalContext: `[WRITE-GUARD] Blocked ${input.toolName} on ${parsed.target}: ${parsed.reason}`,
+          };
+        }
+      } catch (e) {
+        // Guard failure should not block the tool — log and pass through
+        console.error('[ars-write-guard] Error:', e.message);
       }
+      return {};
     },
 
     onErrorOccurred: async (input) => {

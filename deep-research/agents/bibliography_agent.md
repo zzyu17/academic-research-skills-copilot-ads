@@ -81,6 +81,32 @@ After screening, resolve each included source to a Semantic Scholar ID:
 
 **Graceful degradation**: If S2 API is unavailable, skip this step entirely. Duplicates will be caught by the existing title-based deduplication in Step 3.
 
+### Step 4.6: Distributional Skew Advisory (Kong #257)
+
+After retrieval, screening, deduplication, and before writing the final Search Strategy Report, run a **non-blocking** distributional coverage pass over the candidate set that will become `final_included` (or the screened external set when no user corpus is present). This extends the existing `uncovered_topics` / `search-fills-gap` machinery: topic gaps remain the primary coverage signal, and this pass adds distributional skew signals on dimensions that are easy to miss when topics look covered.
+
+Analyze only metadata or annotations actually present. Do not infer missing geography, method, or venue tier from stereotypes. Omit dimensions with too few known values to assess.
+
+Dimensions:
+- **time distribution**: publication year, decade, or user-specified period buckets
+- **geographic distribution**: study site, population region, country/region tag, or explicitly stated context
+- **methodological distribution**: qualitative, quantitative, mixed-methods, review, theoretical, computational/simulation, dataset/tool paper
+- **venue tier distribution**: same journal/conference family, top-3 venue concentration, preprint-only concentration, or grey-literature concentration
+
+Threshold: when a single known value accounts for `>= 70%` of known entries in a dimension, emit `DISTRIBUTIONAL_SKEW_ADVISORY`. Use denominator `known_N` for that dimension, not total source count, and show the count so the user can judge whether the signal is meaningful.
+
+Template:
+
+```markdown
+DISTRIBUTIONAL_SKEW_ADVISORY:
+- Dimension: <time distribution | geographic distribution | methodological distribution | venue tier distribution>
+- Concentration: <value> = <n>/<known_N> (<pct>%)
+- Advisory: This is a coverage-distribution signal, not a defect. Consider whether the RQ warrants broader periods, sites, methods, or venue families.
+- Search response: <new search string / source family to add / "no expansion; user requested this scope">
+```
+
+This advisory never blocks bibliography output, never downgrades included sources, and never becomes a novelty judgment. The user can keep the skew when it is substantively justified.
+
 ### Step 5: Annotated Bibliography
 
 For each source:
@@ -160,6 +186,10 @@ case C: uncovered_topics empty AND NOT user_corpus_only
 ### Step 3: merge
 
 `final_included = pre_screened_included[] ∪ external_included[]`. The annotated bibliography stays neutral — no source-attribution tags on entries.
+
+### Step 3.5: distributional skew advisory
+
+Run the Step 4.6 Distributional Skew Advisory pass over `final_included`. This is separate from `uncovered_topics`: a corpus can cover every RQ subtopic while still being narrowly concentrated in one period, site, method, or venue family. Surface the advisory in the Search Strategy Report after the PRE-SCREENED block and before `**Databases**:` when it triggers.
 
 ### Step 4: emit Search Strategy Report
 
@@ -309,7 +339,7 @@ Set to `true` when the lookup returns NO match — i.e., neither DOI-based looku
 - If only one signal can be computed (e.g., Semantic Scholar API down, but preprint check trivially derivable from year + venue), emit the object with only the computable field present.
 - When `obtained_via` is `manual`, the `semantic_scholar_unmatched` field is omitted (per exemption above). The `preprint_post_llm_inflection` field is still computed if applicable.
 
-The contamination_signals object is **advisory only**. It surfaces at cite-time via the finalizer's CONTAMINATED-... annotation suffix (per `pipeline_orchestrator_agent.md` § Cite-Time Provenance Finalizer — v3.7.3 extension). It does NOT block emission and does NOT promote the entry's trust-state markers from LOW-WARN to MED-WARN. The user retains discretion.
+The contamination_signals object is computed at ingest time and is **advisory at this stage**: bibliography_agent never blocks on it and never promotes the entry's trust-state markers from LOW-WARN to MED-WARN. It surfaces at cite-time via the finalizer's CONTAMINATED-... annotation suffix (per `pipeline_orchestrator_agent.md` § Cite-Time Provenance Finalizer). Whether a contamination signal stays advisory or is promoted to a terminal block at the emission boundary is decided there by the passport's `terminal_policies` (R-L3-2-A; default advisory, user-enabled `contamination_triangulation` strict can promote the k=3 signal) — not by this agent.
 
 ### Triangulation Extension (v3.9.0)
 
@@ -353,6 +383,8 @@ Reference: `references/apa7_style_guide.md`
 **Date Range**: ...
 **Inclusion Criteria**: ...
 **Exclusion Criteria**: ...
+**Coverage Distribution Advisory**:
+[Emit `DISTRIBUTIONAL_SKEW_ADVISORY` blocks for any dimension with >= 70% concentration; otherwise state "No distributional skew advisory triggered."]
 
 ### PRISMA Flow
 [flow diagram data]
