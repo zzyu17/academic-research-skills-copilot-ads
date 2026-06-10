@@ -1,7 +1,7 @@
 // extension.mjs — ARS Copilot CLI Extension
 // =============================================================================
-// Slash commands (14) + lifecycle hooks (onSessionStart, onPostToolUse,
-// onErrorOccurred). onPreToolUse is reserved for v3.10 parity.
+// Slash commands (14) + lifecycle hooks (onSessionStart, onPreToolUse,
+// onErrorOccurred). onPreToolUse hosts the scoped-write guard.
 //
 // Uses Copilot CLI SDK: import { joinSession } from "@github/copilot-sdk/extension"
 // SDK is auto-resolved by the Copilot CLI extension bootstrap — no install needed.
@@ -225,37 +225,70 @@ const session = await joinSession({
       }
     },
 
-    onPostToolUse: async (input) => {
-      // Scoped-Write Guard — detect Bucket A agents writing outside their scope
-      const writeTools = ['Edit', 'Write', 'Create'];
-      if (!writeTools.includes(input.toolName)) return {};
+    onPreToolUse: async (input) => {
+      // -------------------------------------------------------------------
+      // Scoped-Write Guard — pre-execution write blocking.
+      //
+      // Inspects create/edit/bash tool calls. Calls ars_write_scope_guard.py
+      // via stdin JSON. Maps the guard output ({blocked, reason}) to
+      // Copilot CLI's onPreToolUse return format (permissionDecision).
+      //
+      // Platform gap: Copilot CLI hooks do not expose agent_type/subagent
+      // context. The guard's Bucket A per-agent fencing is therefore inactive;
+      // infrastructure self-protection (Step 2 — deny writes to guard scripts,
+      // agent definitions, extension.mjs, etc.) still operates.
+      // -------------------------------------------------------------------
+      const writeTools = ['create', 'edit', 'bash', 'write'];
+      if (!writeTools.includes((input.toolName || '').toLowerCase())) return {};
 
-      const { execSync } = await import('child_process');
+      const { spawnSync } = await import('child_process');
       const path = await import('path');
-      const pluginDir = path.resolve(__dirname, '..', '..');
-      const args = JSON.stringify({
-        tool: input.toolName,
-        target: input.toolArgs?.file_path || input.toolArgs?.filePath || '',
-        agent_context: input.agentContext || '',
+
+      const scriptPath = path.join(__dirname, 'scripts', 'ars_write_scope_guard.py');
+      const cwd = input.workingDirectory || process.cwd();
+
+      // Construct the guard payload and pipe via stdin.
+      // agent_type is deliberately omitted — Copilot CLI hooks lack subagent
+      // context. The guard will skip Bucket A fencing (Step 3-4) and enforce
+      // only infrastructure self-protection (Step 2) + Bash deny for Bucket A.
+      const payload = JSON.stringify({
+        tool_name: input.toolName,
+        tool_input: input.toolArgs || {},
+        cwd: cwd,
       });
 
       try {
-        const result = execSync(
-          `python3 "${pluginDir}/scripts/ars_write_scope_guard.py" '${args}'`,
-          { timeout: 5000, encoding: 'utf8' }
-        );
-        const parsed = JSON.parse(result);
+        const result = spawnSync('python3', [scriptPath], {
+          input: payload,
+          timeout: 5000,
+          encoding: 'utf8',
+          maxBuffer: 64 * 1024,
+        });
+
+        if (result.error) {
+          console.error('[ars-write-guard] spawn error:', result.error.message);
+          return {};
+        }
+
+        const stdout = (result.stdout || '').trim();
+        if (!stdout) return {};
+
+        // Parse guard output: {"blocked": true, "reason": "..."} or {"blocked": false}
+        const parsed = JSON.parse(stdout);
         if (parsed.blocked) {
           return {
-            suppressOutput: true,
-            additionalContext: `[WRITE-GUARD] Blocked ${input.toolName} on ${parsed.target}: ${parsed.reason}`,
+            permissionDecision: 'deny',
+            permissionDecisionReason:
+              parsed.reason || 'Write blocked by ARS scope guard',
           };
         }
+        // Pass-through: no permissionDecision key → normal permission flow
+        return {};
       } catch (e) {
-        // Guard failure should not block the tool — log and pass through
+        // Guard failure must not block the tool — log and pass through
         console.error('[ars-write-guard] Error:', e.message);
+        return {};
       }
-      return {};
     },
 
     onErrorOccurred: async (input) => {
@@ -265,14 +298,5 @@ const session = await joinSession({
       }
       return {};
     },
-
-    // Reserved for v3.10 active conductor (#134):
-    // onPreToolUse: async (input) => {
-    //   // input.toolName, input.toolArgs
-    //   // Phase-boundary write blocking
-    //   // ARS_CLAIM_AUDIT HIGH-WARN annotation blocking
-    //   // Formatter REFUSE rules 6-10 enforcement at tool level
-    //   return { permissionDecision: "allow" };
-    // },
   },
 });

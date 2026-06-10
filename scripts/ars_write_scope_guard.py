@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ARS write-scope guard — PreToolUse hook (#134 Slice 1, the MVP).
+"""ARS write-scope guard — Copilot CLI onPreToolUse hook (#134 Slice 1).
 
 Spec: docs/design/2026-06-01-ars-134-conductor-rescope-deterministic-write-guard-spec.md
 
@@ -7,18 +7,18 @@ Blocks out-of-scope file writes by the 23 Bucket A single-phase subagents, backe
 the machine-readable scope manifest at scripts/ars_phase_scope_manifest.json.
 
 COVERAGE CLAIM — stated precisely, NOT over-promised (spec §3.3 / §7):
-  * DETERMINISTIC for the structured editing tools (Write / Edit / MultiEdit): a write
+  * DETERMINISTIC for the structured editing tools (create / edit / write): a write
     outside the agent's declared scope is denied regardless of the agent's prompt. This is
     the load-bearing win.
   * Bash for Bucket A agents: DENIED WHOLESALE. A single-phase agent may not run any Bash;
-    it uses the Grep/Glob tools to search and Write/Edit/MultiEdit to write. Six review
+    it uses the grep/glob tools to search and the create/edit tools to write. Six review
     rounds established WHY nothing finer is sound: neither "this Bash writes a file" (a
     denylist — `python -c`/`sh -c`/`make`/custom scripts all write, unenumerable) nor "this
     Bash is read-only" (an allowlist — `rg --pre`/`git grep -O`/`sort --compress-program`/
     `GIT_EXTERNAL_DIFF=…` all execute subprocesses, and "read-only" varies by flag, env, and
     binary version) can be decided reliably from a command string without a sandbox. All-deny
     is the only Bash policy that reaches ZERO fail-open by construction. The cost is a clean
-    false-deny of ad-hoc read-only Bash, which the agent does not need (it has Grep/Glob).
+    false-deny of ad-hoc read-only Bash, which the agent does not need (it has grep/glob).
   This is NOT "deterministic enforcement of all writes" — it is deterministic for the
   structured tools plus a clean wholesale Bash deny for fenced agents. The honest win is
   making the #133 shape (a helpful agent calling a write tool into a downstream phase dir)
@@ -27,20 +27,16 @@ COVERAGE CLAIM — stated precisely, NOT over-promised (spec §3.3 / §7):
 The testable core is `evaluate_decision(payload, manifest, workspace_root)` — a pure
 function. `main()` only wires stdin -> evaluate_decision -> stdout JSON.
 
-PAYLOAD CONTRACT (first-party verified against official Claude Code hook docs 2026-06-01):
-  Available: session_id, transcript_path, cwd, permission_mode, hook_event_name, effort,
-  tool_name, tool_input, plus subagent-conditional agent_id / agent_type. `agent_type`
-  equals the subagent's frontmatter `name` (e.g. "bibliography_agent"). `tool_use_id` is
-  NOT a payload field — do not rely on it.
+PAYLOAD CONTRACT (stdin JSON):
+  Required fields: tool_name, tool_input (dict), cwd.
+  Optional: agent_type (str) — the subagent frontmatter `name` (e.g. "bibliography_agent").
+  Copilot CLI does not expose agent_type in hook inputs; when absent, Bucket A per-agent
+  fencing is inactive but infrastructure self-protection (Step 2) still operates.
 
-TOOL_INPUT SHAPES: Write / Edit / MultiEdit each carry a SINGLE top-level `file_path`.
-  Write: {file_path, content}; Edit: {file_path, old_string, new_string};
-  MultiEdit: {file_path, edits:[{old_string,new_string},...]} — edits[] is multiple
-  edits to that ONE file, NOT multiple distinct paths. Bash: {command}.
-  (Official hooks input table does not enumerate MultiEdit; the single-top-level-file_path
-  shape is taken from the tool definition. The path-extraction below reads ONLY the
-  top-level file_path and FAILS LOUD if a structured write tool ever lacks one — so a
-  schema drift cannot silently fail the guard open.)
+TOOL_INPUT SHAPES: create / edit / write each carry a top-level target path.
+  Copilot CLI: {path, ...} — create: {path, file_text}; edit: {path, old_string, new_string}.
+  The path-extraction below reads `path` and FAILS LOUD if a structured write tool ever
+  lacks it — so a schema drift cannot silently fail the guard open.
 """
 
 import fnmatch
@@ -50,29 +46,29 @@ import sys
 
 MANIFEST_FILENAME = "ars_phase_scope_manifest.json"
 
-# Structured editing tools: deterministic, single top-level file_path. The 23 Bucket A
-# agents emit markdown / yaml / bib / txt into their phase dir via these three tools;
-# NotebookEdit is deliberately out of Slice 1 scope (no Bucket A agent writes notebooks,
-# and its hook input shape is unverified — adding it would be speculative coverage).
-STRUCTURED_WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
+# Structured editing tools: deterministic, single top-level target path. The 23 Bucket A
+# agents emit markdown / yaml / bib / txt into their phase dir via these tools.
+# Tool-name matching is case-insensitive (via _normalize_tool_name).
+STRUCTURED_WRITE_TOOLS = {"write", "edit", "create"}
 
 # Tools the guard inspects at all. Everything else -> allow (out of scope).
-INSPECTED_TOOLS = STRUCTURED_WRITE_TOOLS | {"Bash"}
+INSPECTED_TOOLS = STRUCTURED_WRITE_TOOLS | {"bash"}
 
 # Step 2 infrastructure self-protection — normalized workspace-relative path patterns
 # that NO agent (and not even the unconstrained main session) may write. These are the
 # enforcement surface: tampering with them would fail the guard open.
 INFRA_PROTECTED_GLOBS = [
-    "hooks/hooks.json",
-    "hooks/*.sh",
-    ".claude-plugin/plugin.json",  # declares the hook routing — disabling it neuters the guard
+    # Copilot CLI enforcement surface:
+    "extension.mjs",                     # onPreToolUse hook wiring lives here
+    "package.json",                      # plugin manifest
+    "skills/ars-bootstrap/SKILL.md",
+    "scripts/setup-copilot-extension.sh",
     # The hook script, its manifest, and the cross-check lint, protected by filename both
     # in any SUBDIR (`**/name`) AND at the workspace root (bare `name`). A deny-list
     # widening only protects MORE paths, so it is safe — unlike a per-agent allow-glob
     # widening, which would loosen scope. Covering both forms ensures a future directory
-    # move can't fail the guard open (spec §3.2: "the hook script and any helper modules
-    # it imports"). (`**/name` matches subdirs only, not root — see _matches_any — so the
-    # bare entries are load-bearing for a root-level copy, not redundant.)
+    # move can't fail the guard open. (`**/name` matches subdirs only, not root — see
+    # _matches_any — so the bare entries are load-bearing for a root-level copy.)
     "**/ars_write_scope_guard.py",
     "ars_write_scope_guard.py",
     "**/ars_phase_scope_manifest.json",
@@ -86,8 +82,6 @@ INFRA_PROTECTED_GLOBS = [
     "academic-paper-reviewer/agents/*.md",
     "academic-pipeline/agents/*.md",
     "shared/agents/*.md",
-    ".claude/CLAUDE.md",
-    "CLAUDE.md",
 ]
 
 
@@ -98,8 +92,8 @@ def _normalize_target(raw_path, cwd, workspace_root):
     the workspace root (path traversal); escaped_workspace is True then.
 
     Resolves symlinks on the existing parent chain WITHOUT requiring the leaf to exist
-    (the write may create it), so a `phase2_x/../hooks/hooks.json` raw path is
-    canonicalized to `hooks/hooks.json` BEFORE any deny-list / glob match runs.
+    (the write may create it), so a path-traversal attempt is canonicalized to its real
+    target BEFORE any deny-list / glob match runs.
     """
     if not os.path.isabs(raw_path):
         raw_path = os.path.join(cwd, raw_path)
@@ -211,36 +205,41 @@ def _allow_unconstrained(agent_type):
     return result
 
 
-def _extract_structured_target(tool_input):
-    """Single top-level file_path for Write/Edit/MultiEdit.
+def _normalize_tool_name(name):
+    """Normalize tool name to lowercase for case-insensitive matching.
 
-    Returns the file_path string, or None if absent (schema drift -> fail loud upstream).
+    Handles casing differences across platforms consistently.
+    """
+    return (name or "").strip().lower()
+
+
+def _extract_structured_target(tool_input):
+    """Single top-level target path for create/edit/write tools.
+
+    Returns the path string, or None if absent (schema drift -> fail loud upstream).
     """
     if not isinstance(tool_input, dict):
         return None
-    fp = tool_input.get("file_path")
+    fp = tool_input.get("path")
     return fp if isinstance(fp, str) and fp else None
 
 
 def evaluate_decision(payload, manifest, workspace_root):
-    """Pure decision function implementing the spec §3.2 logic (Bash policy per §7, shipped).
+    """Pure decision function implementing the spec §3.2 logic (Bash policy per §7).
 
     Returns a dict: {"decision": "allow"|"deny", "reason": str, ...advisory flags}.
 
     Two enforcement paths:
-      * Structured tools (Write/Edit/MultiEdit) — deterministic write-scope: normalize the
-        single top-level file_path FIRST, then infra self-protection, then Bucket A glob.
-      * Bash — DENY ALL for a Bucket A agent (spec §3.2 Step-4 hardening: neither a denylist
-        of "mutation-capable" Bash nor an allowlist of "read-only" Bash is sound, because
-        neither property is stable across commands/flags/env/versions; only all-deny reaches
-        zero fail-open by construction). The agent uses the Grep/Glob tools for search and the
-        structured tools for writes. Non-Bucket-A Bash passes through.
+      * Structured tools (create/edit/write) — deterministic write-scope: normalize the
+        single top-level target path FIRST, then infra self-protection, then Bucket A glob.
+      * Bash — DENY ALL for a Bucket A agent. The agent uses the grep/glob tools for
+        search and the structured tools for writes. Non-Bucket-A Bash passes through.
     """
     # The pure core defends itself too — not only main() — so a non-dict payload (`[]`,
     # null, a string) passed straight to evaluate_decision can't crash on `.get` (review).
     if not isinstance(payload, dict):
         return {"decision": "allow", "reason": ""}
-    tool_name = payload.get("tool_name", "")
+    tool_name = _normalize_tool_name(payload.get("tool_name", ""))
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):  # [] / null / str -> treat as empty (no crash)
         tool_input = {}
@@ -249,17 +248,17 @@ def evaluate_decision(payload, manifest, workspace_root):
     agents = (manifest or {}).get("agents", {})
     is_bucket_a = bool(agent_type) and agent_type in agents
 
-    # Tools we don't inspect (Read, Grep, WebFetch, ...) -> allow.
+    # Tools we don't inspect (read, grep, web_fetch, ...) -> allow.
     if tool_name not in INSPECTED_TOOLS:
         return {"decision": "allow", "reason": ""}
 
     # --- Bash path: DENY ALL Bash for a Bucket A agent. Non-Bucket-A Bash passes through. ---
-    if tool_name == "Bash":
+    if tool_name == "bash":
         if is_bucket_a:
             return {
                 "decision": "deny",
                 "reason": (f"ARS scope guard: {agent_type} (a single-phase agent) may not use "
-                           "Bash. Use the Grep/Glob tools to search and the Write/Edit/MultiEdit "
+                           "Bash. Use the grep/glob tools to search and the create/edit "
                            "tools to make file changes — those are scope-enforced deterministically. "
                            "Bash is denied wholesale because neither 'writes a file' nor 'is "
                            "read-only' is a property that can be decided reliably from a command "
@@ -270,15 +269,15 @@ def evaluate_decision(payload, manifest, workspace_root):
         # Non-Bucket-A (main session / Bucket B/C/D) Bash -> pass through unconstrained.
         return {"decision": "allow", "reason": ""}
 
-    # --- Structured tools: Step 1 extract + normalize the single top-level file_path. ---
+    # --- Structured tools: Step 1 extract + normalize the single top-level target path. ---
     raw = _extract_structured_target(tool_input)
     if raw is None:
-        # Schema drift: a structured write tool with no top-level file_path. Do NOT
+        # Schema drift: a structured write tool with no target path. Do NOT
         # silently allow — fail loud (deny + advisory) so the guard cannot fail open.
         return {
             "decision": "deny",
             "reason": (f"ARS scope guard: {tool_name} payload carried no top-level "
-                       "file_path (unexpected schema) — denying to avoid silent "
+                       "target path (unexpected schema) — denying to avoid silent "
                        "fail-open. Re-verify the tool_input shape."),
             "schema_drift_advisory": True,
         }
@@ -328,25 +327,18 @@ def evaluate_decision(payload, manifest, workspace_root):
     return {"decision": "allow", "reason": ""}
 
 
-def render_hook_output(decision):
-    """Render the PreToolUse stdout JSON.
+def render_output(decision):
+    """Render the guard decision as Copilot-native stdout JSON.
 
-    DENY -> explicit `permissionDecision: "deny"` (spec §3.2 first-party-verified schema).
-    Non-deny -> PASS-THROUGH: emit NO permissionDecision, so the call falls back to the
-    normal permission flow. Emitting `"allow"` here would be an explicit GRANT that skips
-    every other permission rule (review finding) — a guard that only ADDS denials must never
-    silently widen what the rest of the permission system would otherwise have asked about.
+    DENY -> {"blocked": true, "reason": "..."}
+    ALLOW / pass-through -> {"blocked": false}
     """
     if decision.get("decision") == "deny":
         return json.dumps({
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": decision.get("reason", ""),
-            }
+            "blocked": True,
+            "reason": decision.get("reason", ""),
         })
-    # Pass-through: a bare hookSpecificOutput with no permissionDecision key.
-    return json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse"}})
+    return json.dumps({"blocked": False})
 
 
 def _load_manifest():
@@ -361,31 +353,31 @@ def main():
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         # Malformed payload: do not block (avoid wedging the session); pass through.
-        print(render_hook_output({"decision": "allow", "reason": ""}))
+        print(render_output({"decision": "allow", "reason": ""}))
         return 0
 
     # Valid JSON of the wrong SHAPE ([], null, a string) must not wedge the session either
-    # — only a JSON object carries a tool call (review finding: payload.get would crash).
+    # — only a JSON object carries a tool call.
     if not isinstance(payload, dict):
-        print(render_hook_output({"decision": "allow", "reason": ""}))
+        print(render_output({"decision": "allow", "reason": ""}))
         return 0
 
-    # Hot-path early-exit: PreToolUse fires on EVERY tool call (Read, Grep, WebFetch...),
+    # Hot-path early-exit: onPreToolUse fires on EVERY tool call (read, grep, web_fetch...),
     # not just writes. Bail before touching the manifest on disk for the common non-write
-    # case — the matcher in hooks.json already narrows to write tools, but defend here too.
-    if payload.get("tool_name", "") not in INSPECTED_TOOLS:
-        print(render_hook_output({"decision": "allow", "reason": ""}))
+    # case.
+    if _normalize_tool_name(payload.get("tool_name", "")) not in INSPECTED_TOOLS:
+        print(render_output({"decision": "allow", "reason": ""}))
         return 0
 
-    # Workspace root: prefer CLAUDE_PROJECT_DIR, else the payload cwd.
-    workspace_root = os.environ.get("CLAUDE_PROJECT_DIR") or payload.get("cwd") or os.getcwd()
+    # Workspace root: prefer the payload cwd, else the process working directory.
+    workspace_root = payload.get("cwd") or os.getcwd()
 
     try:
         manifest = _load_manifest()
     except (OSError, json.JSONDecodeError):
         # Manifest unreadable: fail loud to stderr (advisory) but do not wedge writes.
         sys.stderr.write("[ARS write-scope guard] manifest unreadable; passing through.\n")
-        print(render_hook_output({"decision": "allow", "reason": ""}))
+        print(render_output({"decision": "allow", "reason": ""}))
         return 0
 
     decision = evaluate_decision(payload, manifest, workspace_root)
@@ -396,9 +388,9 @@ def main():
                          "allowed (main session) but surfaced per no-silent-no-op rule.\n")
     if decision.get("schema_drift_advisory"):
         sys.stderr.write("[ARS write-scope guard] structured write tool lacked a top-level "
-                         "file_path; denied to avoid silent fail-open.\n")
+                         "target path; denied to avoid silent fail-open.\n")
 
-    print(render_hook_output(decision))
+    print(render_output(decision))
     return 0
 
 

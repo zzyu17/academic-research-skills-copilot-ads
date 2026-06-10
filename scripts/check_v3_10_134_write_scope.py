@@ -157,11 +157,11 @@ def run_checks() -> list[str]:
     # also covered — a one-level glob would silently miss a future `skill/sub/agents/x.md`
     # and reopen the fail-open hole (caught in review). Two real-layout subtleties
     # this must handle WITHOUT false-positives:
-    #   * The plugin-root `agents/` AGGREGATE dir holds SYMLINKS to the per-skill agent files
-    #     (Claude Code plugin convention). A symlink does not introduce a new agent name —
-    #     it points at an already-rostered real file. So compare on the CANONICAL (resolved)
-    #     workspace-relative path: a root-`agents/` symlink resolves back to its
-    #     `deep-research/agents/...` target, which IS in the roster -> not undeclared.
+    #   * The aggregate `agents/` dir may hold symlinks to the per-skill agent files.
+    #     A symlink does not introduce a new agent name — it points at an already-rostered
+    #     real file. So compare on the CANONICAL (resolved) workspace-relative path: a
+    #     root-`agents/` symlink resolves back to its `deep-research/agents/...` target,
+    #     which IS in the roster -> not undeclared.
     #   * Comparing resolved paths also means a genuinely NEW standalone .md (not a symlink)
     #     at any depth is still flagged, because it resolves to itself and is absent from the
     #     roster. That is exactly the fail-open case we want to catch.
