@@ -1,6 +1,6 @@
 # Academic Research Skills for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.9.4.2-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.9.4.2)
+[![Version](https://img.shields.io/badge/version-v3.11.1-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.11.1)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 
 [English](README.md) | [简体中文版](README.zh-CN.md) | [繁體中文版](README.zh-TW.md)
@@ -77,7 +77,7 @@ export ARS_MODEL_EXECUTION="claude-sonnet-4-5"   # 実行層 (plan, outline, rev
 | `deep-research` v2.9.4 | 13エージェントの研究チーム — 7モード |
 | `academic-paper` v3.1.2 | 12エージェントの論文執筆 — 10モード |
 | `academic-paper-reviewer` v1.9.1 | 多角的模擬ピアレビュー — 6モード |
-| `academic-pipeline` v3.9.4.2 | 全10段階パイプラインオーケストレーター |
+| `academic-pipeline` v3.11.1 | 全10段階パイプラインオーケストレーター |
 
 ---
 
@@ -85,7 +85,7 @@ export ARS_MODEL_EXECUTION="claude-sonnet-4-5"   # 実行層 (plan, outline, rev
 
 - **[上流 README](https://github.com/Imbad0202/academic-research-skills)** — 全機能ドキュメント、アーキテクチャ、バージョン履歴、設計思想
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — パイプライン構造、ステージマトリクス、品質ゲート
-- **[docs/design/](docs/design/)** — すべての設計仕様（v3.6.2 – v3.9.4.2 + Copilot移植版）
+- **[docs/design/](docs/design/)** — すべての設計仕様（v3.6.2 – v3.11.1 + Copilot移植版）
 - **[QUICKSTART.md](QUICKSTART.md)** — Copilot CLI セットアップのステップバイステップ手順
 - **[POSITIONING.md](POSITIONING.md)** — ARS の位置づけと非推奨事項
 - **[CHANGELOG.md](CHANGELOG.md)** — リリース履歴（Copilot移植版が先頭）

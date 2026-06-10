@@ -1,6 +1,6 @@
 # Academic Research Skills for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.9.4.2-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.9.4.2)
+[![Version](https://img.shields.io/badge/version-v3.11.1-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.11.1)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 
 [English](README.md) | [简体中文版](README.zh-CN.md) | [日本語版](README.ja-JP.md)
@@ -77,7 +77,7 @@ export ARS_MODEL_EXECUTION="claude-sonnet-4-5"   # 執行層 (計畫、大綱、
 | `deep-research` v2.9.4 | 13 個智能體組成的研究團隊 — 7 種模式 |
 | `academic-paper` v3.1.2 | 12 個智能體組成的論文寫作團隊 — 10 種模式 |
 | `academic-paper-reviewer` v1.9.1 | 多視角同行評審 — 6 種模式 |
-| `academic-pipeline` v3.9.4.2 | 完整的 10 階段流程編排器 |
+| `academic-pipeline` v3.11.1 | 完整的 10 階段流程編排器 |
 
 ---
 
@@ -85,7 +85,7 @@ export ARS_MODEL_EXECUTION="claude-sonnet-4-5"   # 執行層 (計畫、大綱、
 
 - **[上游 README](https://github.com/Imbad0202/academic-research-skills)** — 完整特性文件、架構、版本歷史與設計理念
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — 流程架構、階段矩陣與品質門
-- **[docs/design/](docs/design/)** — 所有設計規格（v3.6.2 – v3.9.4.2 + Copilot 版本）
+- **[docs/design/](docs/design/)** — 所有設計規格（v3.6.2 – v3.11.1 + Copilot 版本）
 - **[QUICKSTART.md](QUICKSTART.md)** — Copilot CLI 逐步設定指南
 - **[POSITIONING.md](POSITIONING.md)** — ARS 的定位與範疇
 - **[CHANGELOG.md](CHANGELOG.md)** — 發布歷史（Copilot 版本在最前）

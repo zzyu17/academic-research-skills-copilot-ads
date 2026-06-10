@@ -1,6 +1,6 @@
 # Academic Research Skills for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.9.4.2-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.9.4.2)
+[![Version](https://img.shields.io/badge/version-v3.11.1-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.11.1)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 
 [简体中文版](README.zh-CN.md) | [繁體中文版](README.zh-TW.md) | [日本語版](README.ja-JP.md)
@@ -77,7 +77,7 @@ Without env vars, all sub-agent dispatches use the session default model. Both t
 | `deep-research` v2.9.4 | 13-agent research team — 7 modes |
 | `academic-paper` v3.1.2 | 12-agent paper writing — 10 modes |
 | `academic-paper-reviewer` v1.9.1 | Multi-perspective peer review — 6 modes |
-| `academic-pipeline` v3.9.4.2 | Full 10-stage pipeline orchestrator |
+| `academic-pipeline` v3.11.1 | Full 10-stage pipeline orchestrator |
 
 ---
 
@@ -85,7 +85,7 @@ Without env vars, all sub-agent dispatches use the session default model. Both t
 
 - **[Upstream README](https://github.com/Imbad0202/academic-research-skills)** — full feature documentation, architecture, version history, design philosophy
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — pipeline flow, stage matrix, quality gates
-- **[docs/design/](docs/design/)** — all design specs (v3.6.2 – v3.9.4.2 + Copilot port)
+- **[docs/design/](docs/design/)** — all design specs (v3.6.2 – v3.11.1 + Copilot port)
 - **[QUICKSTART.md](QUICKSTART.md)** — step-by-step Copilot CLI setup
 - **[POSITIONING.md](POSITIONING.md)** — what ARS is and isn't
 - **[CHANGELOG.md](CHANGELOG.md)** — release history (Copilot port at top)

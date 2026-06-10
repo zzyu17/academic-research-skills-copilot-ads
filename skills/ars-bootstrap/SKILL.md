@@ -49,7 +49,7 @@ After setup is complete and `.bootstrapped` exists, the bootstrap skill runs sil
 | `deep-research` v2.9.4 | 13-agent research team | full, quick, socratic, review, lit-review, fact-check, systematic-review |
 | `academic-paper` v3.1.2 | 12-agent paper writing | full, plan, outline-only, revision, revision-coach, abstract-only, lit-review, format-convert, citation-check, disclosure |
 | `academic-paper-reviewer` v1.9.1 | Multi-perspective paper review (5 reviewers + optional cross-model DA critique) | full, re-review, quick, methodology-focus, guided, calibration |
-| `academic-pipeline` v3.9.4.2 | Full pipeline orchestrator | (coordinates all above) |
+| `academic-pipeline` v3.11.1 | Full pipeline orchestrator | (coordinates all above) |
 
 ## Trigger Auto-Detection
 
@@ -152,7 +152,7 @@ Materials: Complete paper text. field_analyst_agent auto-detects domain and conf
 Materials: Editorial Decision Letter, Revision Roadmap, Per-reviewer detailed comments
 
 ## Version Info
-- **Suite version**: 3.9.4.2-copilot
+- **Suite version**: 3.11.1-copilot
 - **Last Updated**: 2026-05-28
 - **Author**: Zhenyu Zhang
 - **License**: CC-BY-NC 4.0
