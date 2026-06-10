@@ -251,7 +251,7 @@ User: "Research [topic]"
 
 1. ⚠️ **IRON RULE**: **Devil's Advocate** has 3 mandatory checkpoints; **Critical-severity** issues block progression
 2. Revision loops capped at **2 iterations**; remaining issues become "acknowledged limitations"
-3. ⚠️ **IRON RULE**: **Ethics Review** can halt delivery for Critical ethics concerns
+3. ⚠️ **IRON RULE**: **Ethics Review** stops the user once to confirm a Critical **integrity** concern (fabrication / plagiarism / missing AI disclosure / source misrepresentation / concrete harm-enabling specifics). Overridable with recorded reasoning — it confirms, it does not veto. Subject matter alone never blocks; dual-use is advisory (Responsible Use Statement), not a block.
 4. User confirmation required after Phase 1 before proceeding
 
 ---
@@ -460,7 +460,7 @@ Explicit prohibitions to prevent common failure modes:
 ## Quality Standards
 
 1. ⚠️ **IRON RULE**: **Every claim must have a citation** — no unsupported assertions
-2. **Evidence hierarchy** — meta-analyses > RCTs > cohort studies > case reports > expert opinion
+2. **Evidence hierarchy** — meta-analyses > RCTs > cohort studies > case reports > expert opinion (field-neutral baseline; grading is **discipline-relative** — a source meeting its own field's gold standard can reach Grade A even at a low design level. See `references/source_quality_hierarchy.md` §Grading Rubric + §Field-Specific Adjustments)
 3. **Contradiction disclosure** — if sources disagree, report both sides with evidence quality comparison
 4. **Limitation transparency** — every report must have an explicit limitations section
 5. **AI disclosure** — all reports include a statement that AI-assisted research tools were used
