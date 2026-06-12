@@ -26,6 +26,7 @@ academic-research-skills/
 
 - `claude-code-main` — tracks upstream `Imbad0202/academic-research-skills:main` (user-managed sync)
 - `copilot-main` — Copilot CLI adaptations (maintained via merge from claude-code-main + Copilot-specific patches)
+- `copilot-ads` — ADS edition (astronomy/astrophysics ADS + arXiv integration, distributed via `zzyu17/academic-research-skills-copilot-ads`)
 
 ## Development
 

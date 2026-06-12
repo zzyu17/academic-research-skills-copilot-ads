@@ -1,13 +1,27 @@
-# Academic Research Skills for Copilot CLI
+# Academic Research Skills (ADS 版) for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.11.1-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.11.1)
+[![Version](https://img.shields.io/badge/version-v3.11.1--ads-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.11.1)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 
 [English](README.md) | [简体中文版](README.zh-CN.md) | [繁體中文版](README.zh-TW.md)
 
 Copilot CLI 向けの学術研究スキルスイート — 4 スキル、25+ モード、42 エージェントアンサンブル。研究から出版までの全パイプラインをカバーします。
 
+**これは ADS 版です** — SAO/NASA 天体物理データシステム (ADS) を天文学・天体物理学研究の第一級文献ソースとして追加しています。標準版（ADS なし）は[標準ディストリビューション](https://github.com/zzyu17/academic-research-skills-copilot)を参照してください。
+
 > **これは Copilot CLI ブランチ版です。** 基準となる Claude Code 版については、[上流の README](https://github.com/Imbad0202/academic-research-skills) を参照してください。機能ドキュメント、バージョン履歴、設計仕様、アーキテクチャの詳細については、上流のドキュメントおよび本リポジトリの `docs/` ディレクトリを参照してください。このドキュメントは Copilot CLI 固有のインストールと使用方法のみをカバーしています。
+
+---
+
+## ADS 版の新機能
+
+研究分野が**天文学**または**天体物理学**の場合、このエディションでは：
+
+- **研究フェーズ**: SAO/NASA ADS をクエリし（arXiv、Crossref、OpenAlex、Semantic Scholar に加えて）文献検索とソース発見を行います
+- **引用検証**: 整合性チェックで ADS bibcode 解決を Tier-0 の信頼できるソースとして使用 — ADS で一致した引用は下位のリゾルバをすべてスキップします
+- **文献モニタリング**: 研究後モニタリングフェーズに ADS アラート戦略を含みます
+
+環境変数 `ADS_API_TOKEN` を設定して ADS API アクセスを有効にしてください（必須 — 匿名アクセスは不可）。未設定の場合、ADS 機能は正常に縮退し、パイプラインは arXiv および他のデータベースにフォールバックします。
 
 ---
 
@@ -16,8 +30,8 @@ Copilot CLI 向けの学術研究スキルスイート — 4 スキル、25+ モ
 Copilot CLI セッションで：
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 **初回セッションのみ — 拡張機能の登録：**
@@ -26,7 +40,7 @@ Copilot CLI セッションで：
 
 以降のセッションでは、ブートストラップはサイレント終了し、繰り返しのプロンプトは表示されません。
 
-> **プラグイン更新後:** `/plugin update academic-research-skills@academic-research-skills` を実行した場合、拡張機能のシンボリックリンクは更新されたソースファイルを自動的に追跡します。
+> **プラグイン更新後:** `/plugin update academic-research-skills-ads@academic-research-skills-ads` を実行した場合、拡張機能のシンボリックリンクは更新されたソースファイルを自動的に追跡します。
 更新された `extension.mjs` を有効にするには、`/restart` を実行するか、`/clear` で新しいセッションを開始してください。
 
 詳細な手順については [QUICKSTART.md](QUICKSTART.md) を参照してください。
@@ -53,7 +67,7 @@ Copilot CLI セッションで：
 
 **自動生成されるスキルコマンド** (プラグインインストール直後から使用可能、拡張機能の登録は不要):
 
-`/academic-research-skills:deep-research`, `/academic-research-skills:academic-paper`, `/academic-research-skills:academic-paper-reviewer`, `/academic-research-skills:academic-pipeline`, `/academic-research-skills:ars-bootstrap`
+`/academic-research-skills-ads:deep-research`, `/academic-research-skills-ads:academic-paper`, `/academic-research-skills-ads:academic-paper-reviewer`, `/academic-research-skills-ads:academic-pipeline`, `/academic-research-skills-ads:ars-bootstrap`
 
 ---
 
@@ -74,10 +88,10 @@ export ARS_MODEL_EXECUTION="claude-sonnet-4-5"   # 実行層 (plan, outline, rev
 
 | スキル | 目的 |
 |-------|---------|
-| `deep-research` v2.9.4 | 13エージェントの研究チーム — 7モード |
-| `academic-paper` v3.1.2 | 12エージェントの論文執筆 — 10モード |
+| `deep-research` v2.9.4 | 13エージェントの研究チーム — 7モード（+ 天文学 ADS） |
+| `academic-paper` v3.1.2 | 12エージェントの論文執筆 — 10モード（+ ADS 引用ソース） |
 | `academic-paper-reviewer` v1.9.1 | 多角的模擬ピアレビュー — 6モード |
-| `academic-pipeline` v3.11.1 | 全10段階パイプラインオーケストレーター |
+| `academic-pipeline` v3.11.1 | 全10段階パイプラインオーケストレーター（+ ADS 整合性ゲート） |
 
 ---
 

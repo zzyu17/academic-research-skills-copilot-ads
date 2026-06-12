@@ -1,13 +1,27 @@
-# Academic Research Skills for Copilot CLI
+# Academic Research Skills (ADS Edition) for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.11.1-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.11.1)
+[![Version](https://img.shields.io/badge/version-v3.11.1--ads-blue)](https://github.com/Imbad0202/academic-research-skills/releases/tag/v3.11.1)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 
 [简体中文版](README.zh-CN.md) | [繁體中文版](README.zh-TW.md) | [日本語版](README.ja-JP.md)
 
 A comprehensive suite of Copilot CLI skills for academic research — 4 skills, 25+ modes, 42-agent ensemble covering the full pipeline from research to publication.
 
+**This is the ADS edition** — adds SAO/NASA Astrophysics Data System (ADS) as a first-class bibliographic source alongside arXiv for astronomy and astrophysics research. For the standard (non-ADS) edition, see the [standard distribution](https://github.com/zzyu17/academic-research-skills-copilot).
+
 > **This is the Copilot CLI sibling distribution.** For the reference Claude Code distribution, see [the upstream README](https://github.com/Imbad0202/academic-research-skills). Feature documentation, version history, design specs, and architecture details live in the upstream docs and this repo's `docs/` directory. This README covers Copilot CLI-specific installation and usage only.
+
+---
+
+## What's different in the ADS edition
+
+When your research discipline is **Astronomy** or **Astrophysics**, this edition:
+
+- **Research phase**: Queries SAO/NASA ADS (in addition to arXiv, Crossref, OpenAlex, Semantic Scholar) for literature search and source discovery
+- **Citation verification**: Uses ADS bibcode resolution as a Tier-0 authoritative source during integrity checks — ADS-matched citations skip all lower-tier resolvers
+- **Literature monitoring**: Includes ADS alert strategies in the post-research monitoring phase
+
+Set `ADS_API_TOKEN` in your environment to enable ADS API access (required — no anonymous access). Without it, ADS features degrade gracefully: the pipeline falls back to arXiv and other databases.
 
 ---
 
@@ -16,8 +30,8 @@ A comprehensive suite of Copilot CLI skills for academic research — 4 skills, 
 In your Copilot CLI session:
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 **First session only — extension registration:**
@@ -26,7 +40,7 @@ The `ars-bootstrap` skill auto-triggers on academic keywords. It detects the mis
 
 On all subsequent sessions, the bootstrap exits silently — no repeated prompts.
 
-> **After plugin update:** If you run `/plugin update academic-research-skills@academic-research-skills`, the extension symlink auto-follows the updated source files.
+> **After plugin update:** If you run `/plugin update academic-research-skills-ads@academic-research-skills-ads`, the extension symlink auto-follows the updated source files.
 To activate the updated `extension.mjs`, run `/restart` or start a new session with `/clear`.
 
 See [QUICKSTART.md](QUICKSTART.md) for the full walkthrough.
@@ -53,7 +67,7 @@ See [QUICKSTART.md](QUICKSTART.md) for the full walkthrough.
 
 **Auto-generated skill commands** (available immediately after plugin install, no extension needed):
 
-`/academic-research-skills:deep-research`, `/academic-research-skills:academic-paper`, `/academic-research-skills:academic-paper-reviewer`, `/academic-research-skills:academic-pipeline`, `/academic-research-skills:ars-bootstrap`
+`/academic-research-skills-ads:deep-research`, `/academic-research-skills-ads:academic-paper`, `/academic-research-skills-ads:academic-paper-reviewer`, `/academic-research-skills-ads:academic-pipeline`, `/academic-research-skills-ads:ars-bootstrap`
 
 ---
 
@@ -74,10 +88,10 @@ Without env vars, all sub-agent dispatches use the session default model. Both t
 
 | Skill | Purpose |
 |-------|---------|
-| `deep-research` v2.9.4 | 13-agent research team — 7 modes |
-| `academic-paper` v3.1.2 | 12-agent paper writing — 10 modes |
+| `deep-research` v2.9.4 | 13-agent research team — 7 modes (+ ADS for astronomy) |
+| `academic-paper` v3.1.2 | 12-agent paper writing — 10 modes (+ ADS citation source) |
 | `academic-paper-reviewer` v1.9.1 | Multi-perspective peer review — 6 modes |
-| `academic-pipeline` v3.11.1 | Full 10-stage pipeline orchestrator |
+| `academic-pipeline` v3.11.1 | Full 10-stage pipeline orchestrator (+ ADS integrity gate) |
 
 ---
 

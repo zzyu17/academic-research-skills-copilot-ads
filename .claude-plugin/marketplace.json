@@ -1,15 +1,15 @@
 {
-  "name": "academic-research-skills",
+  "name": "academic-research-skills-ads",
   "owner": {
     "name": "Zhenyu Zhang",
     "url": "https://github.com/zzyu17"
   },
-  "description": "Academic Research Skills — production-grade research, writing, peer review, and pipeline orchestration for Copilot CLI.",
+  "description": "Academic Research Skills (ADS edition) — production-grade research, writing, peer review, and pipeline orchestration for Copilot CLI. Adds SAO/NASA ADS integration for astronomy research.",
   "plugins": [
     {
-      "name": "academic-research-skills",
+      "name": "academic-research-skills-ads",
       "source": "./",
-      "description": "4 skills + 25+ modes + Material Passport pipeline. Includes v3.6.7 cross-model audit gate and v3.6.8 generator-evaluator contract. Copilot CLI port.",
+      "description": "4 skills + 25+ modes + Material Passport pipeline. Includes v3.6.7 cross-model audit gate, v3.6.8 generator-evaluator contract, and ADS/arXiv astronomy integration. Copilot CLI port.",
       "version": "3.11.1",
       "license": "CC-BY-NC-4.0"
     }
