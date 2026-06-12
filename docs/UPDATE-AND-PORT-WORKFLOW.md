@@ -415,7 +415,42 @@ After this, `git merge-base claude-code-main claude-code-main-base` will return 
 HEAD, and `git diff claude-code-main-base..claude-code-main` will be empty until the
 next upstream release.
 
-### 7.5 User-managed
+### 7.5 Update `copilot-ads` branch
+
+The `copilot-ads` branch is the ADS (Astrophysics Data System) Edition of Copilot ARS.
+It carries the same Copilot port as `copilot-main` plus native SAO/NASA ADS integration.
+After each update-and-port, it must be rebased onto the updated `copilot-main` to keep
+the two branches in sync.
+
+```bash
+# Step 1: Rebase copilot-ads onto the updated copilot-main
+git checkout copilot-ads
+git rebase copilot-main
+
+# Step 2: Verify copilot-ads version fields match copilot-main
+git diff copilot-main..copilot-ads -- \
+  package.json \
+  .claude-plugin/plugin.json \
+  .claude-plugin/marketplace.json \
+  skills/ars-bootstrap/SKILL.md \
+  MODE_REGISTRY.md
+
+# If the diff shows only ADS-specific additions, the rebase is clean.
+# If version fields are stale (e.g., copilot-ads still shows an old version),
+# bump them to match copilot-main using the same commands as §7.2.
+
+# Step 3: Return to copilot-main
+git checkout copilot-main
+```
+
+The rebase should be a clean fast-forward of ADS-specific commits on top of
+`copilot-main`. If conflicts arise:
+- **Conflict in distribution-identifying files** (e.g., `package.json`): Accept
+  `copilot-main`'s version, then re-apply any ADS-specific metadata additions.
+- **Conflict in source files**: Re-apply ADS changes on top of the updated base,
+  preserving both the upstream port and the ADS integration.
+
+### 7.6 User-managed
 
 - Review full diff: `git diff <last-commit-before-port>..HEAD`
 - Commit remaining changes if any
@@ -424,7 +459,7 @@ next upstream release.
 - Trigger ARS via natural language to verify skill dispatch
 - Run a full pipeline smoke test with a simple research topic
 
-### 7.6 Out of scope
+### 7.7 Out of scope
 
 - **Plugin Test execution** — user will run plugin test in a separate session
 - **Plugin marketplace publishing** — user will handle the plugin distribution

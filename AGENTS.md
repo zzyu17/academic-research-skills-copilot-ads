@@ -27,18 +27,6 @@ academic-research-skills/
 - `claude-code-main` — tracks upstream `Imbad0202/academic-research-skills:main` (user-managed sync)
 - `copilot-main` — Copilot CLI adaptations (maintained via merge from claude-code-main + Copilot-specific patches)
 
-## Sync Workflow
-
-1. Checkout `claude-code-main`: `git checkout claude-code-main`
-2. Pull upstream: `git pull upstream main`
-3. Resolve merge conflicts manually
-4. Checkout `copilot-main`: `git checkout copilot-main`
-5. Merge: `git merge claude-code-main`
-6. Resolve conflicts in adapted files (SKILL.md, agent templates)
-7. Re-apply `model: inherit` removal patch if needed
-8. Run tests: `python3 -m pytest tests/ -q`
-9. Commit: `git commit -m "sync: merge upstream vX.Y.Z into copilot-main [hash]"`
-
 ## Development
 
 - **No `gh ext install`** — Copilot CLI uses `/plugin marketplace add` + `/plugin install`
