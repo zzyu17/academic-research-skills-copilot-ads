@@ -8,7 +8,7 @@ Prerequisites and optional setup for Academic Research Skills on Copilot CLI.
 
 1. Install Copilot CLI (see below).
 2. Configure your provider API key (`COPILOT_PROVIDER_API_KEY` for BYOK, or use Copilot-managed models).
-3. Install ARS: `/plugin marketplace add Imbad0202/academic-research-skills` then `/plugin install academic-research-skills`.
+3. Install ARS: `/plugin marketplace add zzyu17/academic-research-skills-copilot` then `/plugin install academic-research-skills`.
 4. On first run, approve `setup-copilot-extension.sh` (one bash permission); extensions reload automatically and slash commands activate immediately within the same session.
 
 > **After plugin update:** If you run `/plugin update academic-research-skills@academic-research-skills`, the extension symlink auto-follows the updated source files.
