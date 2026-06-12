@@ -2,6 +2,32 @@
 
 All notable changes to the Copilot CLI distribution of Academic Research Skills.
 
+## [3.11.1-copilot] — 2026-06-11
+
+### Ported from upstream (v3.10–v3.11.1)
+
+- **v3.10 measurement infrastructure** (#184): citation-extraction gold subset with 50 hand-curated tuples, `evals/` directory, `scripts/check_evals_gold_set.py` invariant validator
+- **v3.10–v3.11 specification amendments**: fabrication-bypass closure, 5 internal/cross-spec drift fixes (#233), deterministic verification layer spec (#198)
+- **v3.10–v3.11 feature additions**: deterministic bash command dispatch (#225), optional `arxiv_id` in `literature_corpus` schema (#237), verification level surfaced at intake interview (#392), interaction-count budget surfacing + Context Hygiene dispatch discipline (#388), socratic Layer-5 contribution probes in plan mode + revision coaching (#393)
+- **v3.11.1 submission-package verifier** (#394): CLI skeleton + Family C reference integrity, Family B limits checks, Family A blind-review residue scan + Family D assessment, terminality gate
+- **v3.11.1 diff/patch revision mode** (#390–#391): block anchors, hash preconditions, deterministic apply toolchain
+- **v3.11 calibration + bug fixes**: field-norm severity calibration (#215), surface-form parity self-check (#216), citation-gate failure rationale bound (#213), score-trajectory scale reconciliation (#399), reviewer weight reconciliation (#396)
+- **CI hardening**: repository-hygiene gitleaks workflow (#151), version-consistency lint (`check_version_consistency.py`), agents/ symlink mirror-sync lint (#413)
+- **Bug fix — /ars-mark-read YAML passport** (#195): `json.load` → `yaml.safe_load` for real-world passport.yaml
+- **Documentation**: clinical citation verification checklist, EMNLP/ACL policy URL fixes, cross-paper workflow guide, README audit fixes, 20+ spec docs
+- **Localization**: Simplified Chinese README (`README.zh-CN.md`) by @xpfo-go (#185)
+- **Teaching-side companion link** (#427)
+
+### Infrastructure
+
+- **Version bump**: `3.9.4.2` → `3.11.1` across 9 distribution-identifying files (`package.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, 4×README variants, `ars-bootstrap/SKILL.md`, `MODE_REGISTRY.md`)
+- **`docs/UPDATE-AND-PORT-WORKFLOW.md`**: Canonical update-and-port workflow reference with mandatory §4.3 adaptation planning framework, version-bump instructions (§7.2), and `copilot-ads` branch handling (§7.5)
+
+### Known platform gaps
+
+- **Bucket A per-agent fencing** (Steps 3–4 of `evaluate_decision`): Inactive — Copilot CLI `onPreToolUse` does not expose `agent_type`/subagent context. Infrastructure self-protection (Step 2) operates at full strength.
+- **Prompt visibility**: `session.send({prompt})` both feeds the model and renders in user input field — no Copilot CLI SDK mechanism to separate routing context from visible UI text.
+
 ## [3.9.4.2-copilot] — 2026-05-28
 
 ### Added
