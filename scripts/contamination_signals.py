@@ -21,6 +21,12 @@ try:
 except ImportError:
     from scripts.arxiv_client import ArxivUnavailable
 
+# ADS re-export (mirrors arXiv import pattern)
+try:
+    from ads_client import AdsUnavailable
+except ImportError:
+    from scripts.ads_client import AdsUnavailable
+
 
 # 10-venue closed list per v3.7.3 spec §3.2 + schema description.
 # This list is intentionally redundant with the bibliography_agent's
@@ -36,6 +42,7 @@ PREPRINT_VENUES = frozenset({
     "EarthArXiv",
     "OSF Preprints",
     "TechRxiv",
+    "ADS",
 })
 
 
@@ -418,10 +425,79 @@ def resolve_arxiv_unmatched(
     )
 
 
+def _resolve_ads_bibcode_then_title(
+    entry: Mapping[str, Any], client,
+) -> tuple[bool, str | None, str]:
+    """ADS-specific resolver flow (bibcode-keyed, not DOI-keyed), returning
+    (unmatched, matched_by, queried_by). matched_by in {'ads', 'title', None};
+    queried_by in {'id', 'title'} per the C-V6(a) signal.
+
+    Precondition: only called for entries carrying a bibcode — callers
+    skip the resolver when bibcode is absent (#331), so the bibcode lookup
+    always runs and a title search is only the bibcode-miss fallback."""
+    title = entry.get("title", "")
+    queried_by = queried_by_for(entry, id_field="bibcode")
+    hit = client.bibcode_lookup(entry.get("bibcode"), title)
+    if hit is not None:
+        return False, "ads", queried_by
+    # Bibcode miss or MISMATCH -> fall through to title search.
+    hit = client.title_search(title)
+    if hit is not None:
+        return False, "title", queried_by
+    return True, None, queried_by
+
+
+def resolve_ads_unmatched(
+    entry: Mapping[str, Any], client, *, cache=None,
+) -> bool | None:
+    """Compute ads_unmatched per 2026-06-11 ADS integration spec.
+
+    Differs from resolve_crossref_unmatched / resolve_openalex_unmatched in
+    its exact-key channel: ADS is keyed by `entry['bibcode']` (not 'doi'),
+    and the client's exact-key method is `bibcode_lookup` (not
+    `doi_lookup_with_title_check`). The title fallback is identical.
+
+    - Manual entry -> return None (caller MUST omit field).
+    - Bibcode absent -> SKIP the resolver, return None (caller MUST omit field).
+      A non-astronomy citation is not title-searched against ADS: a title miss
+      there is a coverage gap, not non-existence evidence (#331).
+    - Bibcode present + bibcode hit (passes title cross-check) -> return False.
+    - Bibcode present + bibcode miss/MISMATCH -> fall through to title search.
+    - No hit anywhere -> return True (unmatched).
+
+    Returns:
+        True: ADS returned no match by bibcode (with title cross-check) or title.
+        False: ADS found a match.
+        None: obtained_via='manual' OR no bibcode -> skipped, caller omits field.
+
+    Raises:
+        AdsUnavailable: API degraded, caller must omit field per R-L3-2-C.
+
+    cache: optional VerificationCache. cache=None is byte-equivalent to no caching.
+    """
+    if entry.get("obtained_via") == "manual":
+        return None
+    # #331: no bibcode -> resolver is skipped.
+    if not entry.get("bibcode"):
+        return None
+    return _cached_verdict(
+        cache=cache,
+        citation_key=entry.get("citation_key"),
+        resolver_name="ads",
+        query_form=_query_form(
+            id_label="bibcode",
+            id_value=entry.get("bibcode"),
+            title=entry.get("title", ""),
+        ),
+        compute=lambda: _resolve_ads_bibcode_then_title(entry, client),
+    )
+
+
 def build_signals_object(
     entry: Mapping[str, Any],
     client: SemanticScholarClient,
     arxiv_client=None,
+    ads_client=None,
     *,
     cache=None,
 ) -> dict[str, bool]:
@@ -453,4 +529,12 @@ def build_signals_object(
             ax = None
         if ax is not None:
             obj["arxiv_unmatched"] = ax
+    # ADS signal: bibcode-keyed, mirrors the arXiv pattern.
+    if ads_client is not None:
+        try:
+            ax = resolve_ads_unmatched(entry, ads_client, cache=cache)
+        except AdsUnavailable:
+            ax = None
+        if ax is not None:
+            obj["ads_unmatched"] = ax
     return obj

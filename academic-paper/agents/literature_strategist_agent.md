@@ -101,6 +101,7 @@ def admit(source):
 | Social Science | SSRN, Web of Science, Scopus |
 | Humanities | JSTOR, Project MUSE, MLA International Bibliography |
 | Business | ABI/INFORM, Business Source Complete |
+| Astronomy | SAO/NASA Astrophysics Data System (ADS), arXiv |
 | General | Google Scholar, Web of Science, Scopus |
 | Taiwan HEI | Taiwan National Digital Library of Theses and Dissertations, Airiti Library, TSSCI |
 

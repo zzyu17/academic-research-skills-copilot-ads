@@ -100,6 +100,17 @@ Before WebSearch-based verification, run a batch S2 API check on ALL references.
 
 A0 is additive — it does not replace A1. The audit trail must record both A0 and A1 results.
 
+**A0-ADS. ADS Batch Verification (Astronomy discipline):** When the paper's discipline is astronomy, run an additional ADS API batch verification pass on all references:
+
+1. For each reference with an ADS bibcode: query ADS via bibcode lookup + title cross-check (0.70 similarity threshold).
+2. For each reference without a bibcode: run title search against ADS.
+3. Classification:
+   - `ADS_VERIFIED`: ADS returned a match with title similarity >= 0.70.
+   - `ADS_NOT_FOUND`: ADS returned no match.
+   - `ADS_SKIPPED`: No ADS_API_TOKEN available or API degraded — skip ADS tier, continue with other tiers.
+
+ADS tier is additive and independent — an ADS_NOT_FOUND with a valid bibcode is strong fabrication evidence in astronomy, but a single-index miss does not automatically fail the reference (cross-index triangulation with S2 + OpenAlex + Crossref + arXiv provides the unified verdict). See `deep-research/references/ads_api_protocol.md` for query patterns and error handling.
+
 #### A1. Existence Check
 ```
 For each reference:
