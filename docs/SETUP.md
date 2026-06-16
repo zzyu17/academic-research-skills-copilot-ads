@@ -8,10 +8,10 @@ Prerequisites and optional setup for Academic Research Skills on Copilot CLI.
 
 1. Install Copilot CLI (see below).
 2. Configure your provider API key (`COPILOT_PROVIDER_API_KEY` for BYOK, or use Copilot-managed models).
-3. Install ARS: `/plugin marketplace add zzyu17/academic-research-skills-copilot` then `/plugin install academic-research-skills`.
+3. Install ARS: `/plugin marketplace add zzyu17/academic-research-skills-copilot-ads` then `/plugin install academic-research-skills-ads@academic-research-skills-ads`.
 4. On first run, approve `setup-copilot-extension.sh` (one bash permission); extensions reload automatically and slash commands activate immediately within the same session.
 
-> **After plugin update:** If you run `/plugin update academic-research-skills@academic-research-skills`, the extension symlink auto-follows the updated source files.
+> **After plugin update:** If you run `/plugin update academic-research-skills-ads@academic-research-skills-ads`, the extension symlink auto-follows the updated source files.
 To activate the updated `extension.mjs`, run `/restart` or start a new session with `/clear`.
 
 That is enough for Markdown output + DOCX conversion instructions. Everything else in this document is optional.
@@ -139,7 +139,7 @@ Without `ARS_CROSS_MODEL` set, everything works exactly as before. The cross-mod
 
 ## Installation methods (Claude Code reference)
 
-> Copilot CLI users: skip this section. For Copilot CLI, install via `/plugin marketplace add zzyu17/academic-research-skills-copilot` then `/plugin install academic-research-skills@academic-research-skills`.
+> Copilot CLI users: skip this section. For Copilot CLI, install via `/plugin marketplace add zzyu17/academic-research-skills-copilot-ads` then `/plugin install academic-research-skills-ads@academic-research-skills-ads`.
 
 Claude discovers skills at `<install-root>/<skill-name>/SKILL.md`. This repo contains four separate skills, each with its own `SKILL.md`:
 

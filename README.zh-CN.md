@@ -1,6 +1,6 @@
-# Academic Research Skills for Copilot CLI
+# Academic Research Skills (ADS 版) for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot/releases/tag/v3.17.0-copilot)
+[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot-ads/releases/tag/v3.17.0-copilot)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20696614-blue)](https://doi.org/10.5281/zenodo.20696614)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Sponsor](https://img.shields.io/badge/sponsor-Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/crucify020v)
@@ -9,11 +9,29 @@
 
 一套完整的学术研究 Copilot CLI 技能包，涵盖从研究到论文出版的全流程。
 
+**这是 ADS 版** — 将 SAO/NASA 天体物理数据系统 (ADS) 作为天文学与天体物理学研究的一级文献来源。标准版（不含 ADS）请见[标准分发版](https://github.com/zzyu17/academic-research-skills-copilot)。
+
+> **这是 Copilot CLI 分支版本。** 完整的特性文档、版本历史、设计规格和架构说明请参考[上游 Claude Code 版 README](https://github.com/Imbad0202/academic-research-skills) 及本仓库 `docs/` 目录中的设计文档。本文档仅涵盖 Copilot CLI 专属的安装与使用说明。
+
+---
+
+## ADS 版新增功能
+
+当您的研究学科为**天文学**或**天体物理学**时，此版本将：
+
+- **研究阶段**：查询 SAO/NASA ADS（除 arXiv、Crossref、OpenAlex、Semantic Scholar 外）进行文献搜索与来源发现
+- **引文验证**：在完整性检查中将 ADS bibcode 解析作为 Tier-0 权威来源 — 经 ADS 匹配的引文将跳过所有低层级解析器
+- **文献监控**：在研究后监控阶段包含 ADS 提醒策略
+
+请在环境中设置 `ADS_API_TOKEN` 以启用 ADS API 访问（必填 — 不支持匿名访问）。未设置时，ADS 功能将优雅降级：流程回退至 arXiv 及其他数据库。
+
+---
+
 **30 秒安装**（Copilot CLI）：
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 安装后运行 `/ars-plan`，ARS 会用苏格拉底式对话帮你规划章节结构。需要前置条件或传统 symlink 安装，请看 [快速安装](#快速安装)。
@@ -23,6 +41,9 @@
 > 和 humanizer 不同，这个工具不是帮你隐藏使用 AI 协作的事实，而是帮你把关文章质量。风格校准会从你过去的文章中学习你的声音，写作质量检查会识别让文字读起来像机器生成的模式。目标是质量，不是掩饰。
 
 ### 为什么选「人机协作」而不是「全自动」？
+
+> **插件更新后：** 若您执行 `/plugin update academic-research-skills-ads@academic-research-skills-ads`，扩展符号链接会自动指向更新后的源文件。
+要启用更新后的 `extension.mjs`，请执行 `/restart` 或使用 `/clear` 开始新会话。
 
 Lu 等人（2026，*Nature* 651:914-919）发表的 **The AI Scientist** 是第一个端到端全自动的 AI 研究系统，其生成的论文通过 ICLR 2025 workshop 的盲审（评分 6.33/10，workshop 平均 4.87）。他们自己的 Limitations 段落也列出了这类系统会遇到的结构性失败模式：实现错误、幻觉实验结果、取巧特征依赖、实现错误被包装成「意外发现」、方法论伪造、框架锁定、引用幻觉。
 
@@ -44,6 +65,10 @@ v3.3 的灵感来自 [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（So
 
 ## 快速安装
 
+**自动生成的 ADS skill 命令：**
+
+`/academic-research-skills-ads:deep-research`, `/academic-research-skills-ads:academic-paper`, `/academic-research-skills-ads:academic-paper-reviewer`, `/academic-research-skills-ads:academic-pipeline`, `/academic-research-skills-ads:ars-bootstrap`
+
 **前置条件**
 
 - 支持 plugin 与 extension 的 Copilot CLI
@@ -53,8 +78,8 @@ v3.3 的灵感来自 [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（So
 **Plugin 安装（v3.7.0+，推荐）：**
 
 ```text
-/plugin marketplace add Imbad0202/academic-research-skills
-/plugin install academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 **验证可用：** 运行 `/ars-plan` 并描述你正在写的论文，ARS 会用苏格拉底式对话帮你规划章节结构。如果想做单次测试，可以运行 `/ars-lit-review "你的主题"`。
@@ -79,6 +104,7 @@ v3.3 的灵感来自 [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（So
 ## 功能特色一览
 
 - **Deep Research** — 13 个 Agent 的研究团队，支持苏格拉底引导、PRISMA 系统性回顾、意图检测、对话健康度监控、可选跨模型 DA、Semantic Scholar API 验证。
+- **ADS 天文学集成** — 在 arXiv、Crossref、OpenAlex、Semantic Scholar 之外，提供 SAO/NASA ADS 文献发现、基于 bibcode 的引文验证和文献监控策略。
 - **Academic Paper** — 12 个 Agent 的论文撰写团队，含风格校准、写作质量检查、LaTeX 输出强化、可视化、修订教练、引用格式转换、反泄露协议、VLM 图表验证。
 - **Academic Paper Reviewer** — 7 个 Agent 的多视角同行评审，0-100 质量量表（主编 + 3 位动态审查者 + 魔鬼代言人），含让步门槛协议、攻击强度保持、可选跨模型 DA critique / calibration、R&R 追溯矩阵、只读约束。
 - **Academic Pipeline** — 10 阶段全流程调度器，含自适应 checkpoint、主张验证、材料护照、可选 `repro_lock`、可选跨模型学术诚信验证、中途强化机制、分数轨迹追踪。

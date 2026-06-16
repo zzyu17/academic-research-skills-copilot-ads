@@ -1,7 +1,7 @@
 {
-  "name": "academic-research-skills",
+  "name": "academic-research-skills-ads",
   "version": "3.17.0",
-  "description": "Production-grade academic research pipeline for Copilot CLI: research → write → review → revise → finalize. 4 skills, 27 modes, 39-agent ensemble, deterministic citation verification, model tiering, and cross-model handoff gates.",
+  "description": "Production-grade academic research pipeline for Copilot CLI (ADS edition): research → write → review → revise → finalize. 4 skills, 27 modes, 39-agent ensemble, deterministic citation verification, model tiering, cross-model handoff gates, and SAO/NASA ADS + arXiv astronomy integration.",
   "type": "module",
   "author": {
     "name": "Zhenyu Zhang",
@@ -19,6 +19,10 @@
     "literature-review",
     "systematic-review",
     "peer-review",
-    "scholarly-publishing"
+    "scholarly-publishing",
+    "astronomy",
+    "astrophysics",
+    "ads",
+    "arxiv"
   ]
 }

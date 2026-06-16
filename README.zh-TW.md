@@ -1,6 +1,6 @@
-# Academic Research Skills for Copilot CLI
+# Academic Research Skills (ADS 版) for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot/releases/tag/v3.17.0-copilot)
+[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot-ads/releases/tag/v3.17.0-copilot)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20696614-blue)](https://doi.org/10.5281/zenodo.20696614)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Sponsor](https://img.shields.io/badge/sponsor-Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/crucify020v)
@@ -9,11 +9,29 @@
 
 一套完整的學術研究 Copilot CLI 技能包，涵蓋從研究到論文出版的全流程。
 
+**這是 ADS 版** — 將 SAO/NASA 天體物理數據系統 (ADS) 作為天文學與天體物理學研究的一級文獻來源。標準版（不含 ADS）請見[標準分發版](https://github.com/zzyu17/academic-research-skills-copilot)。
+
+> **這是 Copilot CLI 分支版本。** 完整的特性文件、版本歷史、設計規格和架構說明請參考[上游 Claude Code 版 README](https://github.com/Imbad0202/academic-research-skills) 及本倉庫 `docs/` 目錄中的設計文件。本文件僅涵蓋 Copilot CLI 專屬的安裝與使用說明。
+
+---
+
+## ADS 版新增功能
+
+當您的研究學科為**天文學**或**天體物理學**時，此版本將：
+
+- **研究階段**：查詢 SAO/NASA ADS（除 arXiv、Crossref、OpenAlex、Semantic Scholar 外）進行文獻搜尋與來源發現
+- **引文驗證**：在完整性檢查中將 ADS bibcode 解析作為 Tier-0 權威來源 — 經 ADS 匹配的引文將跳過所有低層級解析器
+- **文獻監控**：在研究後監控階段包含 ADS 提醒策略
+
+請在環境中設定 `ADS_API_TOKEN` 以啟用 ADS API 存取（必填 — 不支援匿名存取）。未設定時，ADS 功能將優雅降級：流程回退至 arXiv 及其他資料庫。
+
+---
+
 **30 秒安裝**（Copilot CLI）：
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 裝完跑 `/ars-plan`，ARS 會用蘇格拉底對話幫你規劃章節結構。需要前置條件或傳統 symlink 安裝請看 [快速安裝](#快速安裝)。
@@ -23,6 +41,9 @@
 > 跟 humanizer 不同，這工具不是幫你隱藏用 AI 協作的事實，而是幫你把關文章品質。風格校準從你過去的文章學習你的聲音，寫作品質檢查抓出讓文字讀起來像機器產的模式。目標是品質，不是遮掩。
 
 ### 為什麼選「人機協作」而不是「全自動」？
+
+> **外掛更新後：** 若您執行 `/plugin update academic-research-skills-ads@academic-research-skills-ads`，擴展符號連結會自動追蹤更新後的來源檔案。
+要啟用更新後的 `extension.mjs`，請執行 `/restart` 或使用 `/clear` 開始新會話。
 
 Lu 等人（2026，*Nature* 651:914-919）發表的 **The AI Scientist** 是第一個端到端全自動的 AI 研究系統，其生成的論文通過 ICLR 2025 workshop 的盲審（評分 6.33/10，workshop 平均 4.87）。他們自己的 Limitations 段落也列出了這類系統會遇到的結構性失敗模式：實作錯誤、幻覺實驗結果、取巧特徵依賴、實作錯誤被包裝成「意外發現」、方法論偽造、框架鎖定、引用幻覺。
 
@@ -44,6 +65,10 @@ v3.3 的靈感來自 [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（So
 
 ## 快速安裝
 
+**自動產生的 ADS skill 指令：**
+
+`/academic-research-skills-ads:deep-research`, `/academic-research-skills-ads:academic-paper`, `/academic-research-skills-ads:academic-paper-reviewer`, `/academic-research-skills-ads:academic-pipeline`, `/academic-research-skills-ads:ars-bootstrap`
+
 **前置條件**
 
 - 支援 plugin 與 extension 的 Copilot CLI
@@ -53,8 +78,8 @@ v3.3 的靈感來自 [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（So
 **Plugin 安裝（v3.7.0+，推薦）：**
 
 ```text
-/plugin marketplace add Imbad0202/academic-research-skills
-/plugin install academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 **驗證可用：** 跑 `/ars-plan` 並描述你正在寫的論文，ARS 會用蘇格拉底對話幫你規劃章節結構。想要單次測試的話改跑 `/ars-lit-review "你的主題"`。
@@ -79,6 +104,7 @@ v3.3 的靈感來自 [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（So
 ## 功能特色一覽
 
 - **Deep Research** — 13 個 Agent 的研究團隊，支援蘇格拉底引導、PRISMA 系統性回顧、意圖偵測、對話健康度監控、可選跨模型 DA、Semantic Scholar API 驗證。
+- **ADS 天文學整合** — 在 arXiv、Crossref、OpenAlex、Semantic Scholar 之外，提供 SAO/NASA ADS 文獻探索、以 bibcode 為基礎的引文驗證與文獻監控策略。
 - **Academic Paper** — 12 個 Agent 的論文撰寫團隊，含風格校準、寫作品質檢查、LaTeX 輸出強化、視覺化、修訂教練、引用格式轉換、反洩漏協議、VLM 圖表驗證。
 - **Academic Paper Reviewer** — 7 個 Agent 的多視角同儕審查，0-100 品質量表（主編 + 3 位動態審查者 + 魔鬼代言人），含讓步門檻協議、攻擊強度保持、可選跨模型 DA critique / calibration、R&R 追溯矩陣、唯讀約束。
 - **Academic Pipeline** — 10 階段全流程調度器，含自適應 checkpoint、宣稱驗證、素材護照、可選 `repro_lock`、可選跨模型誠信驗證、中途強化機制、分數軌跡追蹤。

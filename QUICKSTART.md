@@ -7,8 +7,8 @@ Get from zero to your first AI-assisted research in 3 steps.
 In your Copilot CLI session:
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 ## Step 2: Set up the extension (first session only)
@@ -22,7 +22,7 @@ When you start your next Copilot CLI session with an academic prompt, the `ars-b
 
 On all subsequent sessions, the bootstrap skill exits silently — routing rules are injected into agent context without any user-facing prompt.
 
-> **After plugin update:** If you run `/plugin update academic-research-skills@academic-research-skills`, the extension symlink auto-follows the updated source files.
+> **After plugin update:** If you run `/plugin update academic-research-skills-ads@academic-research-skills-ads`, the extension symlink auto-follows the updated source files.
 To activate the updated `extension.mjs`, run `/restart` or start a new session with `/clear`.
 
 ## Step 3: Start researching
@@ -67,10 +67,10 @@ This triggers the full 10-stage pipeline. Budget ~$4-6 in API costs and 2-4 hour
 
 | I want to... | Use this |
 |-------------|----------|
-| Explore a vague idea | `/academic-research-skills:deep-research` socratic mode |
-| Get a quick literature summary | `/academic-research-skills:deep-research` quick mode |
-| Do a systematic review (PRISMA) | `/academic-research-skills:deep-research` systematic-review mode |
-| Write a paper from scratch | `/ars-full` or `/academic-research-skills:academic-paper` full mode |
+| Explore a vague idea | `/academic-research-skills-ads:deep-research` socratic mode |
+| Get a quick literature summary | `/academic-research-skills-ads:deep-research` quick mode |
+| Do a systematic review (PRISMA) | `/academic-research-skills-ads:deep-research` systematic-review mode |
+| Write a paper from scratch | `/ars-full` or `/academic-research-skills-ads:academic-paper` full mode |
 | Plan a paper chapter by chapter | `/ars-plan` |
 | Get my paper reviewed | `/ars-reviewer` |
 | Do everything end-to-end | `/ars-full` |
@@ -81,7 +81,7 @@ This triggers the full 10-stage pipeline. Budget ~$4-6 in API costs and 2-4 hour
 `/ars-full`, `/ars-plan`, `/ars-outline`, `/ars-revision`, `/ars-revision-coach`, `/ars-abstract`, `/ars-lit-review`, `/ars-reviewer`, `/ars-format-convert`, `/ars-citation-check`, `/ars-disclosure`, `/ars-mark-read`, `/ars-unmark-read`, `/ars-cache-invalidate`, `/ars-3w`, `/ars-rebuttal-audit`
 
 **Skill entry points** (5, available immediately after plugin install):
-`/academic-research-skills:deep-research`, `/academic-research-skills:academic-paper`, `/academic-research-skills:academic-paper-reviewer`, `/academic-research-skills:academic-pipeline`, `/academic-research-skills:ars-bootstrap`
+`/academic-research-skills-ads:deep-research`, `/academic-research-skills-ads:academic-paper`, `/academic-research-skills-ads:academic-paper-reviewer`, `/academic-research-skills-ads:academic-pipeline`, `/academic-research-skills-ads:ars-bootstrap`
 
 ## Model routing (optional)
 

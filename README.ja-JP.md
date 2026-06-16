@@ -1,6 +1,6 @@
-# Copilot CLI 向け Academic Research Skills
+# Academic Research Skills (ADS 版) for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot/releases/tag/v3.17.0-copilot)
+[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot-ads/releases/tag/v3.17.0-copilot)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20696614-blue)](https://doi.org/10.5281/zenodo.20696614)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Sponsor](https://img.shields.io/badge/sponsor-Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/crucify020v)
@@ -9,11 +9,29 @@
 
 学術研究のための Copilot CLI スキル統合スイート。研究から論文公開までの全工程をカバーします。
 
+**これは ADS 版です** — SAO/NASA 天体物理データシステム (ADS) を天文学・天体物理学研究の第一級文献ソースとして追加しています。標準版（ADS なし）は[標準ディストリビューション](https://github.com/zzyu17/academic-research-skills-copilot)を参照してください。
+
+> **これは Copilot CLI ブランチ版です。** 基準となる Claude Code 版については、[上流の README](https://github.com/Imbad0202/academic-research-skills) を参照してください。機能ドキュメント、バージョン履歴、設計仕様、アーキテクチャの詳細については、上流のドキュメントおよび本リポジトリの `docs/` ディレクトリを参照してください。このドキュメントは Copilot CLI 固有のインストールと使用方法のみをカバーしています。
+
+---
+
+## ADS 版の新機能
+
+研究分野が**天文学**または**天体物理学**の場合、このエディションでは：
+
+- **研究フェーズ**: SAO/NASA ADS をクエリし（arXiv、Crossref、OpenAlex、Semantic Scholar に加えて）文献検索とソース発見を行います
+- **引用検証**: 整合性チェックで ADS bibcode 解決を Tier-0 の信頼できるソースとして使用 — ADS で一致した引用は下位のリゾルバをすべてスキップします
+- **文献モニタリング**: 研究後モニタリングフェーズに ADS アラート戦略を含みます
+
+環境変数 `ADS_API_TOKEN` を設定して ADS API アクセスを有効にしてください（必須 — 匿名アクセスは不可）。未設定の場合、ADS 機能は正常に縮退し、パイプラインは arXiv および他のデータベースにフォールバックします。
+
+---
+
 **30秒でインストール**（Copilot CLI）:
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 その後、`/ars-plan` を試してソクラテス式対話で論文構成を整理するか、前提条件と従来のシンボリックリンク方式については [クイックインストール](#クイックインストール) を参照してください。
@@ -23,6 +41,9 @@
 > 「humanizer」とは異なり、このツールは AI を使った事実を隠すためのものではありません。より良い文章を書くための助けです。Style Calibration は過去の作品からあなたの声を学習します。Writing Quality Check は機械的に見える文章のパターンを検出します。目的は品質であって、ごまかしではありません。
 
 ### なぜ完全自動化ではなく Human-in-the-Loop なのか?
+
+> **プラグイン更新後:** `/plugin update academic-research-skills-ads@academic-research-skills-ads` を実行した場合、拡張機能のシンボリックリンクは更新されたソースファイルを自動的に追跡します。
+更新された `extension.mjs` を有効にするには、`/restart` を実行するか、`/clear` で新しいセッションを開始してください。
 
 Lu ら (2026, *Nature* 651:914-919) は **The AI Scientist** を構築しました — トップレベルの ML 学会（ICLR 2025 workshop、スコア 6.33/10 vs workshop 平均 4.87）でブラインドピアレビューを通過した論文を発表した、初の完全自律型 AI 研究システムです。彼らの Limitations セクションは、完全自律型 AI 研究パイプラインが継承する失敗モードを列挙しています: 実装バグ、結果のハルシネーション、ショートカット依存、バグを洞察として再フレーミング、方法論の捏造、フレームロック、引用のハルシネーション。
 
@@ -44,6 +65,10 @@ v3.3 は [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（Song, Song, Pf
 
 ## クイックインストール
 
+**自動生成される ADS スキルコマンド:**
+
+`/academic-research-skills-ads:deep-research`, `/academic-research-skills-ads:academic-paper`, `/academic-research-skills-ads:academic-paper-reviewer`, `/academic-research-skills-ads:academic-pipeline`, `/academic-research-skills-ads:ars-bootstrap`
+
 **前提条件**
 
 - plugin と extension をサポートする Copilot CLI
@@ -53,8 +78,8 @@ v3.3 は [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（Song, Song, Pf
 **プラグインインストール（v3.7.0+、推奨）:**
 
 ```text
-/plugin marketplace add Imbad0202/academic-research-skills
-/plugin install academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 **動作確認:** `/ars-plan` を実行して取り組んでいる論文について説明してください — ARS がソクラテス式対話を開始し、章構成をマップします。代わりに単発テストを行うには、`/ars-lit-review "your topic"` を試してください。
@@ -79,6 +104,7 @@ v3.3 は [**PaperOrchestra**](https://arxiv.org/abs/2604.05018)（Song, Song, Pf
 ## 機能概要
 
 - **Deep Research** — 13 エージェントの研究チーム。ソクラテス式ガイドモード、PRISMA システマティックレビュー、意図検出、対話健全性モニタリング、オプションのクロスモデル DA、Semantic Scholar API 検証付き。
+- **ADS 天文学統合** — arXiv、Crossref、OpenAlex、Semantic Scholar に加え、SAO/NASA ADS の文献探索、bibcode ベースの引用検証、文献モニタリング戦略を提供。
 - **Academic Paper** — 12 エージェントの論文執筆。Style Calibration、Writing Quality Check、LaTeX ハードニング、可視化、改訂コーチング、引用変換、アンチリーケージプロトコル、VLM 図表検証付き。
 - **Academic Paper Reviewer** — 0-100 品質ルーブリックを持つ 7 エージェントの多視点ピアレビュー（EIC + 3 動的レビュアー + Devil's Advocate）、譲歩閾値プロトコル、攻撃強度保持、オプションのクロスモデル DA 批評/キャリブレーション、R&R トレーサビリティマトリクス、read-only 制約。
 - **Academic Pipeline** — 10 ステージのパイプラインオーケストレーター。適応的チェックポイント、主張検証、Material Passport、オプションの `repro_lock`、オプションのクロスモデル整合性検証、会話中強化、スコア軌跡追跡付き。

@@ -8,10 +8,10 @@
 
 1. 安裝 Copilot CLI（見 [GitHub Copilot CLI 文件](https://docs.github.com/en/copilot/copilot-cli)）。
 2. 設定你的 provider API key（BYOK 模式使用 `COPILOT_PROVIDER_API_KEY`，或使用 Copilot 訂閱模型）。
-3. 安裝 ARS：`/plugin marketplace add zzyu17/academic-research-skills-copilot` 然後 `/plugin install academic-research-skills@academic-research-skills`。
+3. 安裝 ARS：`/plugin marketplace add zzyu17/academic-research-skills-copilot-ads` 然後 `/plugin install academic-research-skills-ads@academic-research-skills-ads`。
 4. 首次執行時，批准 `setup-copilot-extension.sh`（一次 bash 授權）；擴展會自動重新載入，斜槓命令立即啟用。
 
-> **外掛更新後：** 若執行 `/plugin update academic-research-skills@academic-research-skills`，擴展符號連結會自動指向更新後的來源檔案。
+> **外掛更新後：** 若執行 `/plugin update academic-research-skills-ads@academic-research-skills-ads`，擴展符號連結會自動指向更新後的來源檔案。
 若要啟用更新後的 `extension.mjs`，請執行 `/restart`，或使用 `/clear` 啟動新 session。
 
 這樣就夠了。可得到 Markdown 輸出與 DOCX 轉換說明。本文件其餘內容皆為選用。

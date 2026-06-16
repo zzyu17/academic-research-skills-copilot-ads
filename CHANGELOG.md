@@ -25,6 +25,26 @@ All notable changes to the Copilot CLI distribution of Academic Research Skills.
 
 - Copilot CLI's current `onPreToolUse` payload does not expose subagent identity. Plugin-infrastructure protection is enforced, but upstream Bucket-A per-agent write fencing remains fail-open until the SDK provides a trustworthy agent identifier.
 
+## [ads] — 2026-06-12
+
+### Added
+- **ADS edition**: New isolated distribution as `academic-research-skills-ads` plugin
+- `scripts/ads_client.py`: SAO/NASA ADS API client (bibcode lookup + title search, Bearer auth, rate limiting)
+- `scripts/test_ads_client.py`: 17 unit tests for ADS client
+- `deep-research/references/ads_api_protocol.md`: ADS API protocol reference for agents
+- ADS cross-index resolver in `scripts/contamination_signals.py` (`resolve_ads_unmatched`)
+- 5 ADS resolver integration tests in `scripts/test_contamination_signals.py` (`ResolveAdsUnmatchedTest`)
+- ADS discipline guidance in `literature_strategist_agent.md`, `bibliography_agent.md`, `source_verification_agent.md`
+- ADS integrity verification in `integrity_verification_agent.md`, `citation_compliance_agent.md`
+- ADS alert strategies in `literature_monitoring_strategies.md` (Section 5a)
+
+### Changed
+- Plugin renamed from `academic-research-skills` to `academic-research-skills-ads`
+- Distribution repo: `zzyu17/academic-research-skills-copilot-ads`
+- `PREPRINT_VENUES` in `contamination_signals.py` now includes `"ADS"`
+- All READMEs, QUICKSTART, SETUP docs, POSITIONING, AGENTS updated for ADS edition
+- `package.json`, `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json` updated for ADS edition
+
 ## [3.11.1-copilot] — 2026-06-11
 
 ### Ported from upstream (v3.10–v3.11.1)

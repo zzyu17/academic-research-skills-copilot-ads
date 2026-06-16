@@ -1,6 +1,6 @@
-# Academic Research Skills for Copilot CLI
+# Academic Research Skills (ADS Edition) for Copilot CLI
 
-[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot/releases/tag/v3.17.0-copilot)
+[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot-ads/releases/tag/v3.17.0-copilot)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20696614-blue)](https://doi.org/10.5281/zenodo.20696614)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Sponsor](https://img.shields.io/badge/sponsor-Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/crucify020v)
@@ -9,11 +9,29 @@
 
 A comprehensive suite of Copilot CLI skills for academic research, covering the full pipeline from research to publication.
 
+**This is the ADS edition** — adds SAO/NASA Astrophysics Data System (ADS) as a first-class bibliographic source alongside arXiv for astronomy and astrophysics research. For the standard (non-ADS) edition, see the [standard distribution](https://github.com/zzyu17/academic-research-skills-copilot).
+
+> **This is the Copilot CLI sibling distribution.** For the reference Claude Code distribution, see [the upstream README](https://github.com/Imbad0202/academic-research-skills). Feature documentation, version history, design specs, and architecture details live in the upstream docs and this repo's `docs/` directory. This README covers Copilot CLI-specific installation and usage only.
+
+---
+
+## What's different in the ADS edition
+
+When your research discipline is **Astronomy** or **Astrophysics**, this edition:
+
+- **Research phase**: Queries SAO/NASA ADS (in addition to arXiv, Crossref, OpenAlex, Semantic Scholar) for literature search and source discovery
+- **Citation verification**: Uses ADS bibcode resolution as a Tier-0 authoritative source during integrity checks — ADS-matched citations skip all lower-tier resolvers
+- **Literature monitoring**: Includes ADS alert strategies in the post-research monitoring phase
+
+Set `ADS_API_TOKEN` in your environment to enable ADS API access (required — no anonymous access). Without it, ADS features degrade gracefully: the pipeline falls back to arXiv and other databases.
+
+---
+
 **Install in 30 seconds** (Copilot CLI):
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 Then try `/ars-plan` to walk through your paper structure via Socratic dialogue, or jump to [Quick install](#quick-install) for prerequisites and the traditional symlink flow.
@@ -23,6 +41,9 @@ Then try `/ars-plan` to walk through your paper structure via Socratic dialogue,
 > Unlike a humanizer, this tool doesn't help you hide the fact that you used AI. It helps you write better. Style Calibration learns your voice from past work. Writing Quality Check catches the patterns that make prose feel machine-generated. The goal is quality, not cheating.
 
 ### Why human-in-the-loop, not full automation?
+
+> **After plugin update:** If you run `/plugin update academic-research-skills-ads@academic-research-skills-ads`, the extension symlink auto-follows the updated source files.
+To activate the updated `extension.mjs`, run `/restart` or start a new session with `/clear`.
 
 Lu et al. (2026, *Nature* 651:914-919) built **The AI Scientist** — the first fully autonomous AI research system to publish a paper through blind peer review at a top-tier ML venue (ICLR 2025 workshop, score 6.33/10 vs workshop average 4.87). Their Limitations section enumerates the failure modes that any fully-autonomous AI research pipeline inherits: implementation bugs, hallucinated results, shortcut reliance, bug-as-insight reframing, methodology fabrication, frame-lock, citation hallucinations.
 
@@ -44,6 +65,10 @@ The architecture doc supersedes the sprawling pipeline description that used to 
 
 ## Quick install
 
+**Auto-generated ADS skill commands:**
+
+`/academic-research-skills-ads:deep-research`, `/academic-research-skills-ads:academic-paper`, `/academic-research-skills-ads:academic-paper-reviewer`, `/academic-research-skills-ads:academic-pipeline`, `/academic-research-skills-ads:ars-bootstrap`
+
 **Prerequisites**
 
 - Copilot CLI with plugin and extension support
@@ -54,8 +79,8 @@ The architecture doc supersedes the sprawling pipeline description that used to 
 **Plugin install (v3.7.0+, recommended):**
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 **Verify it works:** run `/ars-plan` and describe a paper you're working on — ARS will start a Socratic dialogue to map out chapter structure. For a single-shot test instead, try `/ars-lit-review "your topic"`.
@@ -82,6 +107,7 @@ The architecture doc supersedes the sprawling pipeline description that used to 
 ## Features at a glance
 
 - **Deep Research** — 13-agent research team with Socratic guided mode, PRISMA systematic review, intent detection, dialogue health monitoring, optional cross-model DA, Semantic Scholar API verification.
+- **ADS Astronomy Integration** — SAO/NASA ADS discovery, bibcode-based citation verification, and literature-monitoring strategies alongside arXiv, Crossref, OpenAlex, and Semantic Scholar.
 - **Academic Paper** — 12-agent paper writing with Style Calibration, Writing Quality Check, LaTeX hardening, visualization, revision coaching, citation conversion, anti-leakage protocol, and VLM figure verification.
 - **Academic Paper Reviewer** — 7-agent multi-perspective peer review with 0–100 quality rubrics (EIC + 3 dynamic reviewers + Devil's Advocate), concession threshold protocol, attack intensity preservation, optional cross-model DA critique / calibration, R&R traceability matrix, read-only constraint.
 - **Academic Pipeline** — 10-stage pipeline orchestrator with adaptive checkpoints, claim verification, Material Passport, optional `repro_lock`, optional cross-model integrity verification, mid-conversation reinforcement, and score trajectory tracking.

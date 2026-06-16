@@ -527,7 +527,7 @@ The rebase should be a clean fast-forward of ADS-specific commits on top of
 
 - Review full diff: `git diff <last-commit-before-port>..HEAD`
 - Commit remaining changes if any
-- Test plugin update: `/plugin update academic-research-skills@academic-research-skills` then `/restart`
+- Test plugin update: `/plugin update academic-research-skills-ads@academic-research-skills-ads` then `/restart`
 - Verify all slash commands appear
 - Trigger ARS via natural language to verify skill dispatch
 - Run a full pipeline smoke test with a simple research topic

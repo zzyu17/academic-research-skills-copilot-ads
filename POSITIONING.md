@@ -2,7 +2,7 @@
 
 ## What this is
 
-Academic Research Skills (ARS) is a **source-available academic research copilot framework** for noncommercial scholarly use. This repository is the Copilot CLI sibling distribution of the [Claude Code reference distribution](https://github.com/Imbad0202/academic-research-skills). It follows the same workflow content, human-in-the-loop design philosophy, and license terms; see [CONTRIBUTING.md § Platform ports](CONTRIBUTING.md#platform-ports-community-maintained-only).
+Academic Research Skills (ARS) is a **source-available academic research copilot framework** for noncommercial scholarly use. This repository is the ADS-enabled Copilot CLI sibling distribution of the [Claude Code reference distribution](https://github.com/Imbad0202/academic-research-skills); the [standard Copilot CLI distribution](https://github.com/zzyu17/academic-research-skills-copilot) omits the astronomy-specific ADS integration. Both follow the same workflow content, human-in-the-loop design philosophy, and license terms; see [CONTRIBUTING.md § Platform ports](CONTRIBUTING.md#platform-ports-community-maintained-only).
 
 It is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). This is not an open source license — it restricts commercial use by design, to keep the tool free for academic communities.
 
