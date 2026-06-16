@@ -32,6 +32,12 @@ try:
 except ImportError:
     from scripts.arxiv_client import ArxivUnavailable
 
+# ADS re-export (mirrors arXiv import pattern)
+try:
+    from ads_client import AdsUnavailable
+except ImportError:
+    from scripts.ads_client import AdsUnavailable
+
 
 # #431 §0.12.3b — the resolver-decision logic version, stored under the
 # "decision_version" key in each cached verdict value (spec-preferred form: no
@@ -60,6 +66,7 @@ PREPRINT_VENUES = frozenset({
     "EarthArXiv",
     "OSF Preprints",
     "TechRxiv",
+    "ADS",
 })
 
 
@@ -453,10 +460,79 @@ def resolve_arxiv_unmatched(
     )
 
 
+def _resolve_ads_bibcode_then_title(
+    entry: Mapping[str, Any], client,
+) -> tuple[bool, str | None, str]:
+    """ADS-specific resolver flow (bibcode-keyed, not DOI-keyed), returning
+    (unmatched, matched_by, queried_by). matched_by in {'ads', 'title', None};
+    queried_by in {'id', 'title'} per the C-V6(a) signal.
+
+    Precondition: only called for entries carrying a bibcode — callers
+    skip the resolver when bibcode is absent (#331), so the bibcode lookup
+    always runs and a title search is only the bibcode-miss fallback."""
+    title = entry.get("title", "")
+    queried_by = queried_by_for(entry, id_field="bibcode")
+    hit = client.bibcode_lookup(entry.get("bibcode"), title)
+    if hit is not None:
+        return False, "ads", queried_by
+    # Bibcode miss or MISMATCH -> fall through to title search.
+    hit = client.title_search(title)
+    if hit is not None:
+        return False, "title", queried_by
+    return True, None, queried_by
+
+
+def resolve_ads_unmatched(
+    entry: Mapping[str, Any], client, *, cache=None,
+) -> bool | None:
+    """Compute ads_unmatched per 2026-06-11 ADS integration spec.
+
+    Differs from resolve_crossref_unmatched / resolve_openalex_unmatched in
+    its exact-key channel: ADS is keyed by `entry['bibcode']` (not 'doi'),
+    and the client's exact-key method is `bibcode_lookup` (not
+    `doi_lookup_with_title_check`). The title fallback is identical.
+
+    - Manual entry -> return None (caller MUST omit field).
+    - Bibcode absent -> SKIP the resolver, return None (caller MUST omit field).
+      A non-astronomy citation is not title-searched against ADS: a title miss
+      there is a coverage gap, not non-existence evidence (#331).
+    - Bibcode present + bibcode hit (passes title cross-check) -> return False.
+    - Bibcode present + bibcode miss/MISMATCH -> fall through to title search.
+    - No hit anywhere -> return True (unmatched).
+
+    Returns:
+        True: ADS returned no match by bibcode (with title cross-check) or title.
+        False: ADS found a match.
+        None: obtained_via='manual' OR no bibcode -> skipped, caller omits field.
+
+    Raises:
+        AdsUnavailable: API degraded, caller must omit field per R-L3-2-C.
+
+    cache: optional VerificationCache. cache=None is byte-equivalent to no caching.
+    """
+    if entry.get("obtained_via") == "manual":
+        return None
+    # #331: no bibcode -> resolver is skipped.
+    if not entry.get("bibcode"):
+        return None
+    return _cached_verdict(
+        cache=cache,
+        citation_key=entry.get("citation_key"),
+        resolver_name="ads",
+        query_form=_query_form(
+            id_label="bibcode",
+            id_value=entry.get("bibcode"),
+            title=entry.get("title", ""),
+        ),
+        compute=lambda: _resolve_ads_bibcode_then_title(entry, client),
+    )
+
+
 def build_signals_object(
     entry: Mapping[str, Any],
     client: SemanticScholarClient,
     arxiv_client=None,
+    ads_client=None,
     *,
     cache=None,
 ) -> dict[str, bool]:
@@ -472,7 +548,8 @@ def build_signals_object(
     S2 and arXiv resolvers. cache=None is byte-equivalent to no caching.
     """
     return build_signals_with_omissions(
-        entry, client, arxiv_client, cache=cache)[0]
+        entry, client, arxiv_client, ads_client, cache=cache
+    )[0]
 
 
 # ---------------------------------------------------------------------------
@@ -487,6 +564,7 @@ def build_signals_with_omissions(
     entry: Mapping[str, Any],
     client: SemanticScholarClient,
     arxiv_client=None,
+    ads_client=None,
     *,
     cache=None,
 ) -> tuple[dict[str, bool], dict[str, str]]:
@@ -497,9 +575,10 @@ def build_signals_with_omissions(
     API degraded — the distinction `compute_ss_unmatched_signal`'s None return
     collapses (manual vs degraded), surfaced here by checking the manual
     exemption upstream. Derivable omissions are never recorded: manual entries
-    return `({preprint...}, {})` (no lookup ran), and a missing arxiv_id skips
-    the arXiv row entirely (#331). Callers persist a non-empty `omissions` as
-    the entry's `contamination_signal_omissions` object (schema forbids empty).
+    return `({preprint...}, {})` (no lookup ran), and a missing arxiv_id or
+    bibcode skips the corresponding row entirely (#331). Callers persist a
+    non-empty `omissions` as the entry's `contamination_signal_omissions`
+    object (schema forbids empty).
     """
     obj: dict[str, bool] = {
         "preprint_post_llm_inflection": compute_preprint_signal(entry),
@@ -525,6 +604,16 @@ def build_signals_with_omissions(
         else:
             if ax is not None:
                 obj["arxiv_unmatched"] = ax
+    # ADS signal: bibcode-keyed and opt-in, mirroring the arXiv resolver while
+    # retaining v3.17's explicit API-degradation provenance.
+    if ads_client is not None and entry.get("bibcode"):
+        try:
+            ads = resolve_ads_unmatched(entry, ads_client, cache=cache)
+        except AdsUnavailable:
+            omissions["ads_unmatched"] = OMISSION_API_DEGRADED
+        else:
+            if ads is not None:
+                obj["ads_unmatched"] = ads
     return obj, omissions
 
 

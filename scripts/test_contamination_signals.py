@@ -1084,3 +1084,75 @@ class ResolveArxivQueriedByTest(unittest.TestCase):
         self.assertIs(unmatched, False)
         self.assertEqual(matched_by, "arxiv")
         self.assertEqual(queried_by, "id")
+# ADS — resolve_ads_unmatched
+# ============================================================================
+
+
+class ResolveAdsUnmatchedTest(unittest.TestCase):
+    """Tests for resolve_ads_unmatched per 2026-06-11 ADS integration spec."""
+
+    def test_match(self):
+        """ADS hit via bibcode cross-check -> False."""
+        from contamination_signals import resolve_ads_unmatched
+
+        mock_client = MagicMock()
+        mock_client.bibcode_lookup.return_value = {"title": "X", "bibcode": "2024ApJ...001A", "year": 2024}
+
+        entry = {
+            "title": "X",
+            "bibcode": "2024ApJ...001A",
+            "obtained_via": "zotero-bbt-export",
+        }
+        result = resolve_ads_unmatched(entry, mock_client)
+        self.assertIs(result, False)
+
+    def test_no_match(self):
+        """ADS no bibcode hit + no title hit -> True."""
+        from contamination_signals import resolve_ads_unmatched
+
+        mock_client = MagicMock()
+        mock_client.bibcode_lookup.return_value = None
+        mock_client.title_search.return_value = None
+
+        entry = {
+            "title": "Nonexistent Paper",
+            "bibcode": "2024Fake..001X",
+            "obtained_via": "folder-scan",
+        }
+        result = resolve_ads_unmatched(entry, mock_client)
+        self.assertIs(result, True)
+
+    def test_manual_exempt(self):
+        """obtained_via='manual' -> return None, no client calls."""
+        from contamination_signals import resolve_ads_unmatched
+
+        mock_client = MagicMock()
+        entry = {"title": "X", "obtained_via": "manual"}
+        result = resolve_ads_unmatched(entry, mock_client)
+        self.assertIsNone(result)
+        mock_client.bibcode_lookup.assert_not_called()
+        mock_client.title_search.assert_not_called()
+
+    def test_bibcode_absent_skips_resolver(self):
+        """Bibcode absent: resolver skipped, returns None, NO client calls."""
+        from contamination_signals import resolve_ads_unmatched
+
+        mock_client = MagicMock()
+
+        entry = {"title": "X", "obtained_via": "zotero-bbt-export"}  # no bibcode
+        result = resolve_ads_unmatched(entry, mock_client)
+        self.assertIsNone(result)
+        mock_client.bibcode_lookup.assert_not_called()
+        mock_client.title_search.assert_not_called()
+
+    def test_api_down_raises(self):
+        """API degraded -> re-raise AdsUnavailable for caller to omit field."""
+        from contamination_signals import resolve_ads_unmatched
+        from ads_client import AdsUnavailable
+
+        mock_client = MagicMock()
+        mock_client.bibcode_lookup.side_effect = AdsUnavailable("down")
+
+        entry = {"title": "X", "bibcode": "2024ApJ...001A", "obtained_via": "folder-scan"}
+        with self.assertRaises(AdsUnavailable):
+            resolve_ads_unmatched(entry, mock_client)
