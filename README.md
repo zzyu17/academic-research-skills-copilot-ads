@@ -1,6 +1,6 @@
 # Academic Research Skills for Codex
 
-[![Version](https://img.shields.io/badge/version-v0.1.15-blue)](VERSION)
+[![Version](https://img.shields.io/badge/version-v0.1.16-blue)](VERSION)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Sponsor](https://img.shields.io/badge/sponsor-Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/crucify020v)
 
@@ -49,7 +49,7 @@ Use this repo when you want the Codex-native single-suite skill.
 
 ## Versioning
 
-This Codex package is version `0.1.15`. The repo-root `VERSION` file,
+This Codex package is version `0.1.16`. The repo-root `VERSION` file,
 `skills/academic-research-suite/SKILL.md` metadata version, and
 `skills/academic-research-suite/manifest.json` `adapter_version` track the
 Codex package version independently of the vendored ARS suite. Vendored upstream
@@ -58,15 +58,15 @@ versions are recorded by commit in `manifest.source_repositories[]`.
 Package-level changes are summarized in [`CHANGELOG.md`](CHANGELOG.md).
 
 The vendored ARS source currently tracks
-`Imbad0202/academic-research-skills@17c518b286e48bbcd19fa7d05ec4f7d2aeb01641`
-(`v3.13.0-5-g17c518b`). Vendored runtime content includes the ARS v3.13
-hook portability, provider-agnostic verification, guard-correctness updates,
-v3.12.1 reviewer-response triage modes, format-profile support, and diff/patch
-revision tooling through ARS main, plus the native-reviewed Korean README and
-platform-port reminder updates. Nested upstream `.github/` workflows and root
-`agents/` mirrors are preserved for traceability and self-tests, but are not
-repo-level CI or Codex entrypoints; Claude/plugin loader files under `.claude/`
-and `.claude-plugin/` remain intentionally excluded.
+`Imbad0202/academic-research-skills@8157a15b3bfad94af5c3ac4d7a79d5a9362622f4`
+(`v3.14.0`). Vendored runtime content includes the ARS v3.14 eval-harness PR
+comment renderer, prompt-debt retirement updates, July harness-retirement audit,
+release-aligned README/CITATION/MODE_REGISTRY surfaces, refreshed setup and
+architecture docs, and prior v3.13 portability and verification hardening.
+Nested upstream `.github/` workflows and root `agents/` mirrors are preserved
+for traceability and self-tests, but are not repo-level CI or Codex entrypoints;
+Claude/plugin loader files under `.claude/` and `.claude-plugin/` remain
+intentionally excluded.
 
 ## Install Or Update
 
@@ -307,10 +307,10 @@ ARS was originally written for Claude Code. In this Codex package:
 - If a citation, source, statistic, or journal policy cannot be verified, Codex
   should mark it as unverified rather than invent support.
 
-### ARS v3.13 Mainline Parity
+### ARS v3.14 Release Parity
 
 This package aims for the same user-facing workflow content as upstream ARS
-`v3.13.0-5-g17c518b` where Codex has an equivalent concept.
+`v3.14.0` where Codex has an equivalent concept.
 
 | Upstream ARS feature | Codex package behavior |
 |---|---|

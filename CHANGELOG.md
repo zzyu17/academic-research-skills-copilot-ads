@@ -4,6 +4,26 @@ All notable changes to the Codex package are documented here.
 
 ## Unreleased
 
+## [0.1.16] - 2026-07-02
+
+### What's Changed
+- Updated the vendored ARS runtime from
+  `17c518b286e48bbcd19fa7d05ec4f7d2aeb01641` (`v3.13.0-5-g17c518b`,
+  ARS main after the platform-port reminder update) to
+  `8157a15b3bfad94af5c3ac4d7a79d5a9362622f4` (`v3.14.0`).
+- Added upstream ARS v3.14 release content, including eval-harness PR comment
+  rendering, prompt-debt retirement updates, the July harness-retirement audit,
+  release-aligned README/CITATION/MODE_REGISTRY surfaces, and refreshed setup
+  and architecture docs.
+- Preserved Codex packaging behavior: one root router skill, vendored workflow
+  entry files named `WORKFLOW.md`, excluded Claude/plugin loader files,
+  Codex-specific spec-consistency adaptations, and the materialized Codex
+  Desktop plugin bundle.
+
+### Notes
+- This sync pins the exact ARS release tag `v3.14.0`, not post-release
+  `ars/main`.
+
 ## [0.1.15] - 2026-06-29
 
 ### What's Changed
