@@ -4,8 +4,9 @@
 Implements the lookup contract documented at
 `deep-research/references/arxiv_api_protocol.md`. arXiv-ID-first with
 title cross-check (ID_MISMATCH pattern), title-similarity fallback,
-429 -> 2s backoff x 3 retries, network/5xx -> ArxivUnavailable. Mirrors
-`crossref_client.py` / `openalex_client.py` structure.
+429 -> 3s backoff x 3 retries (the ToU pacing floor), network/5xx ->
+ArxivUnavailable. Mirrors `crossref_client.py` / `openalex_client.py`
+structure.
 
 arXiv-specific differences from the Crossref/OpenAlex siblings:
   - The query API returns Atom 1.0 XML, NOT JSON. `_get` parses with
@@ -34,17 +35,19 @@ from typing import Any
 # Dual-path import: see openalex_client.py comment.
 try:
     from _text_similarity import (
-        _BACKOFF_SECONDS,
         _MAX_RETRIES,
         _TITLE_SIMILARITY_THRESHOLD,
         _similarity,
+        exact_normalized_title,
+        generic_title,
     )
 except ImportError:
     from scripts._text_similarity import (
-        _BACKOFF_SECONDS,
         _MAX_RETRIES,
         _TITLE_SIMILARITY_THRESHOLD,
         _similarity,
+        exact_normalized_title,
+        generic_title,
     )
 
 
@@ -155,7 +158,11 @@ class ArxivClient:
                     return root.findall(f"{_ATOM_NS}entry")
             except urllib.error.HTTPError as e:
                 if e.code == 429 and attempt < _MAX_RETRIES:
-                    time.sleep(_BACKOFF_SECONDS)
+                    # Sleep the ToU pacing floor, not the sibling clients'
+                    # shared 2s backoff: arXiv asks for >= 3s between
+                    # requests, so a sub-3s retry would itself violate the
+                    # pacing the 429 is enforcing.
+                    time.sleep(_ARXIV_MIN_INTERVAL)
                     # Refresh throttle anchor after backoff so the next outer
                     # _get call paces against actual wake time (mirrors
                     # crossref_client.py).
@@ -187,17 +194,24 @@ class ArxivClient:
     def title_search(
         self, title: str, year: int | None = None,
     ) -> dict[str, Any] | None:
-        """Title search with 0.70 similarity threshold + matching-year tiebreaker.
+        """Title search under the #431 exact-title-or-bust gate.
 
-        Returns the best matching projected entry dict, or None if no
-        candidate meets the threshold.
-        """
+        A candidate matches iff it clears the 0.70 ratio AND is an exact
+        normalized title match (§0.12.1); a non-exact high-ratio title is never
+        promoted on year/author alone. On the title-fallback path no ID can
+        corroborate, so an exact-but-generic title (§0.12.2) is not promoted.
+        Returns the best exact candidate, or None → resolver reduces the
+        title-keyed miss to `unresolvable`. See crossref_client.title_search."""
+        if generic_title(title):
+            return None
         entries = self._get({"search_query": f'ti:"{title}"', "max_results": "5"})
         scored = []
         for cand in entries:
             cand_title = _extract_title(cand)
             sim = _similarity(cand_title, title)
             if sim < _TITLE_SIMILARITY_THRESHOLD:
+                continue
+            if not exact_normalized_title(title, cand_title):
                 continue
             year_match = year is not None and _extract_year(cand) == year
             score = sim + (0.05 if year_match else 0.0)

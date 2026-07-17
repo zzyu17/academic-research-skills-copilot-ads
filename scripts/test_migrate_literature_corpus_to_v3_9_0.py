@@ -297,5 +297,201 @@ class PartialDegradationTest(unittest.TestCase):
             cr.title_search.assert_not_called()
 
 
+class ParallelDispatchTest(unittest.TestCase):
+    """#138: when both fields are missing, the OpenAlex and Crossref calls for a
+    single entry must be dispatched in parallel, not one-after-the-other.
+
+    Verified with a 2-party threading.Barrier injected into both mock clients:
+    each resolver call blocks on the barrier and only proceeds once *both* have
+    arrived. A sequential implementation calls OpenAlex first and waits for it to
+    return before it ever calls Crossref, so the second party never arrives and
+    the barrier times out (BrokenBarrierError). A parallel implementation has
+    both calls in flight at once, so the barrier releases and both return.
+    """
+
+    # Barrier timeout: large enough that a correct parallel impl never trips it
+    # even on a loaded CI runner (the gated calls do no real I/O), small enough
+    # that a sequential impl fails fast. Bump this if CI thread-starvation ever
+    # produces a false BrokenBarrierError on a known-parallel implementation.
+    _BARRIER_TIMEOUT_S = 5
+
+    def test_both_resolvers_dispatched_in_parallel(self) -> None:
+        import threading
+
+        barrier = threading.Barrier(2, timeout=self._BARRIER_TIMEOUT_S)
+
+        def _gated_oa_doi_lookup(doi, expected_title):
+            barrier.wait()  # only releases if Crossref also arrives concurrently
+            return None  # no match → openalex_unmatched True
+
+        def _gated_cr_doi_lookup(doi, expected_title):
+            barrier.wait()
+            return None  # no match → crossref_unmatched True
+
+        oa = MagicMock()
+        oa.doi_lookup_with_title_check.side_effect = _gated_oa_doi_lookup
+        oa.title_search.side_effect = lambda title, year=None: None
+        cr = MagicMock()
+        cr.doi_lookup_with_title_check.side_effect = _gated_cr_doi_lookup
+        cr.title_search.side_effect = lambda title, year=None: None
+
+        with tempfile.TemporaryDirectory() as td:
+            p = _make_passport(Path(td), [{
+                "citation_key": "parallel",
+                "title": "Parallel dispatch",
+                "authors": [{"family": "P"}],
+                "year": 2024,
+                "source_pointer": "doi:10.5555/par",
+                "doi": "10.5555/par",
+                "obtained_via": "folder-scan",
+                "contamination_signals": {
+                    "preprint_post_llm_inflection": False,
+                    "semantic_scholar_unmatched": True,
+                    # both openalex_unmatched + crossref_unmatched absent
+                },
+            }])
+
+            # Sequential impl → barrier never gets its 2nd party → BrokenBarrierError.
+            report = mig.migrate_passport(
+                p, oa_client=oa, cr_client=cr, dry_run=False
+            )
+
+            self.assertEqual(report["patched"], 1)
+            doc = mig.load_passport(p)
+            sig = doc["literature_corpus"][0]["contamination_signals"]
+            self.assertIs(sig["openalex_unmatched"], True)
+            self.assertIs(sig["crossref_unmatched"], True)
+
+
+class ApiDownDegradationTest(unittest.TestCase):
+    """#138 risk 2+3: when one resolver raises its Unavailable exception inside
+    the thread pool, that exception must surface back on the orchestrator thread,
+    its field must be omitted (not written), the matching degraded_* counter must
+    increment, and the OTHER resolver's field must still be filled cleanly.
+
+    This path was previously untested for both the sequential and the parallel
+    implementations; with the thread pool the exception now propagates out of
+    Future.result(), so it is the most important behaviour to pin down.
+    """
+
+    def test_openalex_down_omits_field_and_fills_crossref(self) -> None:
+        oa = MagicMock()
+        oa.doi_lookup_with_title_check.side_effect = OpenAlexUnavailable(
+            "openalex 503"
+        )
+        oa.title_search.side_effect = OpenAlexUnavailable("openalex 503")
+        # Crossref healthy, no match → crossref_unmatched True.
+        cr = _make_cr_client()
+
+        with tempfile.TemporaryDirectory() as td:
+            p = _make_passport(Path(td), [{
+                "citation_key": "oa_down",
+                "title": "OpenAlex down",
+                "authors": [{"family": "D"}],
+                "year": 2024,
+                "source_pointer": "doi:10.5555/down",
+                "doi": "10.5555/down",
+                "obtained_via": "folder-scan",
+                "contamination_signals": {
+                    "preprint_post_llm_inflection": False,
+                    "semantic_scholar_unmatched": True,
+                },
+            }])
+
+            report = mig.migrate_passport(
+                p, oa_client=oa, cr_client=cr, dry_run=False
+            )
+
+            # Crossref filled, so the entry counts as patched.
+            self.assertEqual(report["patched"], 1)
+            self.assertEqual(report["degraded_openalex"], 1)
+            self.assertEqual(report["degraded_crossref"], 0)
+
+            doc = mig.load_passport(p)
+            sig = doc["literature_corpus"][0]["contamination_signals"]
+            # Failed API field omitted entirely, not written as a guessed value.
+            self.assertNotIn("openalex_unmatched", sig)
+            self.assertIs(sig["crossref_unmatched"], True)
+
+
+
+
+class OmissionProvenanceTest(unittest.TestCase):
+    """#511 Part A: degraded lookups record contamination_signal_omissions;
+    recovery clears them; both idempotently."""
+
+    def _entry(self):
+        return {
+            "citation_key": "chen2024ai",
+            "title": "AI in education",
+            "authors": [{"family": "Chen", "given": "A"}],
+            "year": 2024,
+            "source_pointer": "file:///refs/chen2024.pdf",
+            "doi": "10.1234/abc",
+            "obtained_via": "folder-scan",
+            "contamination_signals": {
+                "preprint_post_llm_inflection": False,
+                "semantic_scholar_unmatched": False,
+            },
+        }
+
+    def _degraded_oa(self):
+        client = MagicMock()
+        client.doi_lookup_with_title_check.side_effect = OpenAlexUnavailable("down")
+        client.title_search.side_effect = OpenAlexUnavailable("down")
+        return client
+
+    def test_degraded_lookup_records_omission(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = _make_passport(Path(td), [self._entry()])
+            report = mig.migrate_passport(
+                p, oa_client=self._degraded_oa(), cr_client=_make_cr_client(),
+                dry_run=False)
+            self.assertEqual(report["degraded_openalex"], 1)
+            entry = mig.load_passport(p)["literature_corpus"][0]
+            self.assertEqual(
+                entry["contamination_signal_omissions"],
+                {"openalex_unmatched": "api_degraded"})
+            # Crossref ran fine — signal present, no omission for it.
+            self.assertIn("crossref_unmatched", entry["contamination_signals"])
+
+    def test_degraded_rerun_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = _make_passport(Path(td), [self._entry()])
+            mig.migrate_passport(
+                p, oa_client=self._degraded_oa(), cr_client=_make_cr_client(),
+                dry_run=False)
+            before = p.read_text()
+            report2 = mig.migrate_passport(
+                p, oa_client=self._degraded_oa(), cr_client=_make_cr_client(),
+                dry_run=False)
+            self.assertEqual(report2["patched"], 0)
+            self.assertEqual(before, p.read_text())
+
+    def test_recovery_clears_stale_omission(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = _make_passport(Path(td), [self._entry()])
+            mig.migrate_passport(
+                p, oa_client=self._degraded_oa(), cr_client=_make_cr_client(),
+                dry_run=False)
+            # API back up: signal computes, stale omission cleared.
+            mig.migrate_passport(
+                p, oa_client=_make_oa_client(), cr_client=_make_cr_client(),
+                dry_run=False)
+            entry = mig.load_passport(p)["literature_corpus"][0]
+            self.assertIn("openalex_unmatched", entry["contamination_signals"])
+            self.assertNotIn("contamination_signal_omissions", entry)
+
+    def test_dry_run_reports_omission_without_writing(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = _make_passport(Path(td), [self._entry()])
+            before = p.read_text()
+            report = mig.migrate_passport(
+                p, oa_client=self._degraded_oa(), cr_client=_make_cr_client(),
+                dry_run=True)
+            self.assertEqual(report["degraded_openalex"], 1)
+            self.assertEqual(before, p.read_text())
+
+
 if __name__ == "__main__":
     unittest.main()

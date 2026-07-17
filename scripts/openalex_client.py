@@ -4,8 +4,9 @@
 Implements the lookup contract documented at
 `deep-research/references/openalex_api_protocol.md`. DOI-first with
 title cross-check (DOI_MISMATCH pattern), title-similarity fallback,
-429 → 2s backoff × 3 retries, 5xx → skip. Mirrors
-`semantic_scholar_client.py` structure for code locality.
+429 → budget-exhausted fail-fast or exponential backoff × 3 retries,
+5xx → skip. Mirrors `semantic_scholar_client.py` structure for code
+locality.
 """
 from __future__ import annotations
 
@@ -27,25 +28,57 @@ try:
         _BACKOFF_SECONDS,
         _MAX_RETRIES,
         _TITLE_SIMILARITY_THRESHOLD,
-        _normalize_title,
         _similarity,
+        exact_normalized_title,
+        generic_title,
     )
 except ImportError:
     from scripts._text_similarity import (
         _BACKOFF_SECONDS,
         _MAX_RETRIES,
         _TITLE_SIMILARITY_THRESHOLD,
-        _normalize_title,
         _similarity,
+        exact_normalized_title,
+        generic_title,
     )
 
 
 _API_BASE = "https://api.openalex.org"
+_API_HOST = "api.openalex.org"
+_API_KEY_ENV = "OPENALEX_API_KEY"
 _POLITE_EMAIL_ENV = "OPENALEX_POLITE_EMAIL"
 _FIELDS = "id,title,authorships,publication_year,doi,primary_location"
 
-_POLITE_MIN_INTERVAL = 0.1
+_AUTHENTICATED_MIN_INTERVAL = 0.1
 _ANONYMOUS_MIN_INTERVAL = 1.0
+
+
+def _require_api_url(url: str) -> None:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https" or parsed.netloc != _API_HOST:
+        # Strip the query from the message: it can carry api_key, which
+        # must never land in logs / raised-exception text.
+        redacted = urllib.parse.urlunsplit(
+            (parsed.scheme, parsed.netloc, parsed.path, "", "")
+        )
+        raise OpenAlexUnavailable(f"Refusing non-OpenAlex URL: {redacted}")
+
+
+def _daily_budget_exhausted(headers: Any) -> bool:
+    """True iff a 429 carries `X-RateLimit-Remaining: 0` — OpenAlex's
+    daily-budget exhaustion signal (budget refills at midnight UTC), where
+    an in-process retry seconds later cannot succeed. A 429 without the
+    header, or with budget remaining, is transient burst limiting
+    (>100 req/s) and stays on the retry path."""
+    if headers is None:
+        return False
+    value = headers.get("X-RateLimit-Remaining")
+    if value is None:
+        return False
+    try:
+        return int(value) == 0
+    except (ValueError, TypeError):
+        return False
 
 
 class OpenAlexUnavailable(Exception):
@@ -59,10 +92,20 @@ class OpenAlexClient:
     instance across a migration run.
     """
 
-    def __init__(self, polite_email: str | None = None):
+    def __init__(
+        self, polite_email: str | None = None, api_key: str | None = None,
+    ):
+        # api_key is the OpenAlex-documented auth mechanism (free key, 10×
+        # the keyless daily budget). polite_email predates it: the polite
+        # pool is no longer in OpenAlex's docs but `mailto` is still sent
+        # for backward compatibility when configured. Either credential
+        # selects the authenticated pacing tier.
+        self._api_key = api_key or os.environ.get(_API_KEY_ENV)
         self._polite_email = polite_email or os.environ.get(_POLITE_EMAIL_ENV)
         self._min_interval = (
-            _POLITE_MIN_INTERVAL if self._polite_email else _ANONYMOUS_MIN_INTERVAL
+            _AUTHENTICATED_MIN_INTERVAL
+            if (self._api_key or self._polite_email)
+            else _ANONYMOUS_MIN_INTERVAL
         )
         self._last_request_at: float | None = None
 
@@ -79,9 +122,12 @@ class OpenAlexClient:
 
     def _get(self, path: str, query: Mapping[str, str]) -> dict[str, Any]:
         params = dict(query)
+        if self._api_key:
+            params["api_key"] = self._api_key
         if self._polite_email:
             params["mailto"] = self._polite_email
         url = f"{_API_BASE}{path}?{urllib.parse.urlencode(params)}"
+        _require_api_url(url)
         req = urllib.request.Request(url, headers={"User-Agent": "ARS-v3.9.0"})
 
         self._throttle()
@@ -89,7 +135,8 @@ class OpenAlexClient:
 
         for attempt in range(_MAX_RETRIES + 1):
             try:
-                with urllib.request.urlopen(req, timeout=30) as resp:
+                # URL is fixed-host HTTPS after _require_api_url().
+                with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310
                     # Wrap response body read + decode + parse in a narrow
                     # except so transient socket drops mid-stream, garbled
                     # bodies, or HTML error pages slipped through with 200
@@ -116,14 +163,22 @@ class OpenAlexClient:
             except urllib.error.HTTPError as e:
                 if e.code == 404:
                     return {}
-                if e.code == 429 and attempt < _MAX_RETRIES:
-                    time.sleep(_BACKOFF_SECONDS)
-                    # Refresh anchor after backoff so the next _throttle()
-                    # paces against actual wake time, not entry time.
-                    # Without this the next call may under-sleep (elapsed
-                    # already counts the 2s × N backoff) and re-trigger 429.
-                    self._last_request_at = time.monotonic()
-                    continue
+                if e.code == 429:
+                    if _daily_budget_exhausted(e.headers):
+                        raise OpenAlexUnavailable(
+                            "OpenAlex daily budget exhausted "
+                            "(X-RateLimit-Remaining: 0, refills midnight UTC)"
+                        ) from e
+                    if attempt < _MAX_RETRIES:
+                        # Exponential backoff (2s → 4s → 8s) per OpenAlex's
+                        # documented guidance for transient burst 429s.
+                        time.sleep(_BACKOFF_SECONDS * (2 ** attempt))
+                        # Refresh anchor after backoff so the next _throttle()
+                        # paces against actual wake time, not entry time.
+                        # Without this the next call may under-sleep (elapsed
+                        # already counts the backoff) and re-trigger 429.
+                        self._last_request_at = time.monotonic()
+                        continue
                 raise OpenAlexUnavailable(f"OpenAlex HTTP {e.code}: {e.reason}") from e
             except (urllib.error.URLError, TimeoutError) as e:
                 raise OpenAlexUnavailable(f"OpenAlex network error: {e}") from e
@@ -134,18 +189,24 @@ class OpenAlexClient:
         self, doi: str, expected_title: str,
     ) -> dict[str, Any] | None:
         """DOI lookup with mandatory Levenshtein 0.70 title cross-check."""
-        data = self._get(f"/works/doi:{doi}", {"select": _FIELDS})
+        quoted_doi = urllib.parse.quote(doi, safe="")
+        data = self._get(f"/works/doi:{quoted_doi}", {"select": _FIELDS})
         title = data.get("title") or ""
         if _similarity(title, expected_title) >= _TITLE_SIMILARITY_THRESHOLD:
             return data
         return None  # DOI_MISMATCH
 
     def title_search(self, title: str, year: int | None = None) -> dict[str, Any] | None:
-        """Title search with 0.70 similarity threshold + matching-year tiebreaker.
+        """Title search under the #431 exact-title-or-bust gate.
 
-        When *year* is provided, candidates whose ``publication_year`` matches
-        get a +0.05 score bonus (mirroring S2 client ``_lookup_by_title``).
-        """
+        A candidate matches iff it clears the 0.70 ratio AND is an exact
+        normalized title match (§0.12.1); a non-exact high-ratio title is never
+        promoted on year/author alone. On the title-fallback path no ID can
+        corroborate, so an exact-but-generic title (§0.12.2) is not promoted.
+        Returns the best exact candidate, or None → resolver reduces the
+        title-keyed miss to `unresolvable`. See crossref_client.title_search."""
+        if generic_title(title):
+            return None
         data = self._get("/works", {
             "search": title,
             "per-page": "5",
@@ -154,8 +215,11 @@ class OpenAlexClient:
         candidates = data.get("results", [])
         scored = []
         for cand in candidates:
-            sim = _similarity(cand.get("title") or "", title)
+            cand_title = cand.get("title") or ""
+            sim = _similarity(cand_title, title)
             if sim < _TITLE_SIMILARITY_THRESHOLD:
+                continue
+            if not exact_normalized_title(title, cand_title):
                 continue
             year_match = year is not None and cand.get("publication_year") == year
             score = sim + (0.05 if year_match else 0.0)

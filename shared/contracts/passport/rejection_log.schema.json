@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/zzyu17/academic-research-skills-copilot/shared/contracts/passport/rejection_log.schema.json",
+  "$id": "https://github.com/Imbad0202/academic-research-skills/shared/contracts/passport/rejection_log.schema.json",
   "title": "Literature Corpus Rejection Log",
   "description": "Output companion to passport.yaml. Records entries that the adapter could not include in literature_corpus[]. Always emitted; empty when no rejections. Consumers are not required to read this; it exists for user debugging and audit.",
 

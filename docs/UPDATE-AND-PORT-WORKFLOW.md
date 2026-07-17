@@ -11,10 +11,12 @@ The update-and-port workflow transfers features from the upstream Claude Code ve
 
 **When to run:** After upstream `claude-code-main` releases a new version.
 
-**Core principle:** Cherry-pick by feature, not bulk merge. Bulk merges would overwrite
-Copilot-specific files (`extension.mjs`, `ars-bootstrap/SKILL.md`, etc.) and introduce
-Claude Code routing references that don't apply in Copilot CLI. Feature-by-feature
-checkout gives precise control over what lands and where adaptation is needed.
+**Core principle:** Port by dependency-ordered subsystem with a three-way comparison,
+not by blindly merging or replaying every upstream commit. Use
+`claude-code-main-base` to distinguish upstream changes from Copilot adaptations. Portable
+content follows upstream; divergent runtime and distribution surfaces are merged or adapted
+explicitly. For a small release, feature-level checkout may still be the clearest execution
+method, but it is not a requirement.
 
 ---
 
@@ -67,7 +69,7 @@ Required for every port:
 
 | Tool | Purpose | Install |
 |------|---------|---------|
-| `python3` | Python syntax checks, schema validation | `python3 --version` |
+| `python3` | Python syntax checks, schema validation | `command -v python3 && python3 --version` |
 | `node` | `extension.mjs` syntax check | `node --version` |
 
 Additional tools may be needed per-port (e.g., `jq` for jq filter validation in v3.11.1).
@@ -95,12 +97,15 @@ Portable content that requires Copilot-specific wiring:
 - Claude Code hook patterns → must rewire in `extension.mjs` hook handlers
 - New slash commands added in Claude Code version (`commands/*.md`) → must add CommandDefinitions in `extension.mjs`
 
-### 3.3 Skipped ❌
+### 3.3 Skipped or behavior-mapped ❌ / ⚠️
 
 Claude Code-only infrastructure with no Copilot equivalent:
-- `scripts/announce-ars-loaded.sh` — session-start banner (Copilot uses silent `onSessionStart`)
-- Claude Code hook infrastructure (`hooks/hooks.json` — inert in Copilot, no action needed)
-- `.claude/` directory files (inert in Copilot, no action needed)
+- `scripts/announce-ars-loaded.sh` — do not copy the shell hook; map user-relevant bootstrap
+  content to `ars-bootstrap` / `onSessionStart`
+- Claude Code hook configuration — do not copy `hooks/hooks.json`; map applicable behavior
+  to `extension.mjs` and document any Copilot interface gap
+- `.claude/` directory files — do not copy as runtime infrastructure; map current routing,
+  version, and CI authority to the bootstrap
 
 ### 3.4 Output: Feature mapping table
 
@@ -152,7 +157,9 @@ For each ⚠️ feature, create a spec covering these sections **before touching
 
 **B. Copilot CLI interface — 1:1 mapping**
 - For each Claude interface, find the exact Copilot equivalent (e.g., `PreToolUse` hook → `onPreToolUse` hook)
-- Map every Claude-specific field to its Copilot counterpart (e.g., `tool_name` → `toolName`, `cwd` → `workingDirectory`)
+- Map every Claude-specific field to its Copilot counterpart using the installed Copilot SDK
+  types or current official interface (e.g., `tool_name` → `toolName`; current
+  `PreToolUseHookInput.cwd` remains `cwd`, not `workingDirectory`)
 - Document any fields that have NO Copilot equivalent (e.g., `agent_type` in hook inputs) — these are gaps
 
 **C. Adaptation strategy — concrete changes**
@@ -162,7 +169,10 @@ For each ⚠️ feature, create a spec covering these sections **before touching
 - If `extension.mjs` needs changes, specify: which hook, input/output mapping, payload construction
 
 **D. Purge checklist**
-- List every Claude-specific string that must be removed: tool names (`MultiEdit`), env vars (`CLAUDE_PROJECT_DIR`), paths (`hooks/hooks.json`, `.claude-plugin/`), output wrappers (`hookSpecificOutput`), PascalCase references in comments
+- List every Claude-specific string that must be removed from the live Copilot execution
+  path: tool names (`MultiEdit`), env vars (`CLAUDE_PROJECT_DIR`), hook paths
+  (`hooks/hooks.json`), and output wrappers (`hookSpecificOutput`). Do not mechanically purge
+  packaging files such as `.claude-plugin/` when the Copilot marketplace still consumes them.
 - After execution, grep for each string to confirm zero remain
 
 **E. Verification plan**
@@ -199,7 +209,7 @@ Phases must be dependency-ordered:
 
 Each phase follows the same pattern:
 
-1. **Create a TODO SQL table and mark phase in progress**
+1. **Mark the phase in progress in the active task plan.**
 
 2. **Port new files:**
    ```bash
@@ -215,17 +225,34 @@ Each phase follows the same pattern:
 
 5. **Run verification gate** (see §6.1)
 
-6. **Mark phase done, present changes + commit message, STOP for user review:**
+6. **Mark phase done and commit it automatically after its verification gate:**
    ```
    Copilot: port v<version> - phase <N>
 
    <phase summary line — lowercase, ~1 line describing features ported>
    ```
 
-   Do NOT commit automatically. The user reviews all changes and commits manually.
-   Only proceed to the next phase after explicit user approval.
+   Do not add `Co-authored-by`, generator, or AI attribution trailers. Continue directly to
+   the next approved phase without asking for per-phase approval. Ask the user for inspection
+   and approval only after all execution phases and final verification are complete.
+
+This automatic-commit policy applies only after the maintainer has approved the port plan.
+It does not authorize pushing, tagging, advancing `claude-code-main-base`, rebasing a sibling
+branch, or publishing a release.
 
 ### 5.3 File porting methods
+
+Do not limit the transfer to `git diff claude-code-main-base..claude-code-main` paths.
+That delta omits files which upstream left unchanged but a previous Copilot port deleted or
+adapted. For each portable subsystem, also compare the complete current source tree against
+`copilot-main` and restore every upstream-tracked file unless it is an explicit platform
+exception. Use null-delimited path handling when filenames may contain non-ASCII characters.
+
+```bash
+git ls-tree -rz --name-only claude-code-main <portable-roots...> \
+  | rg --null-data -v '<exact-platform-exclusion-regex>' \
+  | xargs -0 -r git checkout claude-code-main --
+```
 
 **New files** (added in `claude-code-main`, don't exist in `copilot-main`):
 ```bash
@@ -244,12 +271,30 @@ surgical edits:
 - `scripts/setup-copilot-extension.sh`
 - `package.json`
 
-**Claude Code-inert files** (`.claude/`, `commands/`, `hooks/`) are left as-is and do not
-need porting — Copilot CLI ignores them.
+**Claude Code-inert files** (`.claude/`, `commands/`, `hooks/`) are not copied as runtime
+infrastructure. Their behavior must still be inventoried: relevant routing, commands, guards,
+and CI assertions are mapped to `ars-bootstrap` and `extension.mjs`; truly Claude-only pieces
+are documented as skipped.
 
 ---
 
 ## 6. Verification Gates
+
+### 6.0 Adapt live-authority lints before using them as gates
+
+Do not interpret a Claude-layout failure as a product-runtime failure. At the start of every
+port, search current and incoming checks for assumptions about `.claude/CLAUDE.md`,
+`commands/`, `hooks/hooks.json`, or the announce script. In the Copilot branch:
+
+- version/routing checks validate `skills/ars-bootstrap/SKILL.md`;
+- command checks validate the `CommandDefinition` inventory and dispatch prompts in
+  `extension.mjs`;
+- hook checks validate `onSessionStart` / `onPreToolUse` wiring in `extension.mjs`;
+- release-tag checks accept the `vX.Y.Z-copilot` convention.
+
+Until those checks are adapted in the runtime/finalization phase, record their failures as
+explicitly deferred and exclude only those named tests from earlier phase gates. Never weaken
+the final gate: the adapted tests must pass before the completed port is presented.
 
 ### 6.1 Per-phase
 
@@ -293,8 +338,9 @@ After all phases complete:
 grep -rn 'CLAUDE\.md\|Claude Code' skills/*/SKILL.md docs/*.md QUICKSTART.md README*.md
 
 # All Claude Code version slash commands ported to extension.mjs
-# Compare: ls commands/ in claude-code-main vs grep "name:" extension.mjs
-git ls-tree claude-code-main -- commands/ | wc -l   # N Claude Code commands
+# Compare the upstream command filenames with extension definitions
+git ls-tree -r --name-only claude-code-main commands/ | sed 's|commands/||; s|\.md$||' | sort
+grep -o 'name: "ars-[^"]*"' extension.mjs | sed 's/name: "//; s/"//' | sort
 grep -c "name: \"ars-" extension.mjs                 # should be >= N
 
 # All copilot-specific files present
@@ -329,23 +375,35 @@ After all feature phases are committed, bump the version in every
 distribution-identifying file from the previous port version to the new
 source version (e.g., `3.9.4.2` → `3.11.1`).
 
-#### 7.2.1 Files to bump (9 files, 4 patterns)
+#### 7.2.1 Discover and bump current version surfaces
 
-**Pattern 1 — JSON version fields (3 files):**
+Do not rely on a historical fixed file count. First discover every live distribution surface,
+including newly added translations:
 
 ```bash
-NEW="3.11.1"  # replace with actual new version
+rg -l 'v?<old-version>|releases/tag/v<old-version>' \
+  package.json .claude-plugin skills/ars-bootstrap README* MODE_REGISTRY.md \
+  docs/ARCHITECTURE.md CITATION.cff
+```
+
+Classify matches as current markers or historical examples before editing. The common current
+patterns are:
+
+**Pattern 1 — JSON version fields:**
+
+```bash
+NEW="3.17.0"  # replace with actual new version
 
 for f in package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
   sed -i 's|"version": "[0-9.]*"|"version": "'"$NEW"'"|' "$f"
 done
 ```
 
-**Pattern 2 — README badges and references (4 files):**
+**Pattern 2 — README badges and current references (all present translations):**
 
 ```bash
 OLD_SHORT="3.9.4.2"  # replace with actual old version
-for f in README.md README.zh-CN.md README.zh-TW.md README.ja-JP.md; do
+for f in README.md README.zh-CN.md README.zh-TW.md README.ja-JP.md README.ko-KR.md; do
   sed -i "s|version-v${OLD_SHORT}-blue|version-v${NEW}-blue|g" "$f"
   sed -i "s|releases/tag/v${OLD_SHORT}|releases/tag/v${NEW}|g" "$f"
   sed -i "s|\`academic-pipeline\` v${OLD_SHORT}|\`academic-pipeline\` v${NEW}|g" "$f"
@@ -368,12 +426,15 @@ TODAY=$(date +%F)
 sed -i "s|Last updated: v${OLD_SHORT} (.*)|Last updated: v${NEW} (${TODAY})|" MODE_REGISTRY.md
 ```
 
+Copilot release links and tags use `v${NEW}-copilot`, not the upstream plain tag. Preserve
+plain `v${NEW}` only where a source/upstream version is intentionally named.
+
 #### 7.2.2 Verify
 
 ```bash
 # All distribution files must be clean
 for f in package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json \
-         README.md README.zh-CN.md README.zh-TW.md README.ja-JP.md \
+         README.md README.zh-CN.md README.zh-TW.md README.ja-JP.md README.ko-KR.md \
          skills/ars-bootstrap/SKILL.md MODE_REGISTRY.md; do
   grep -q "$OLD_SHORT" "$f" && echo "STALE: $f still has $OLD_SHORT" || true
 done
@@ -400,10 +461,11 @@ If documentation files with translated versions were modified, ensure their tran
 - `docs/PERFORMANCE.md` → `docs/PERFORMANCE.zh-TW.md`
 - `docs/SETUP.md` → `docs/SETUP.zh-TW.md`
 
-### 7.4 Update `claude-code-main-base`
+### 7.4 Update `claude-code-main-base` (separate authorization required)
 
-After all phases are committed, advance the reference branch so the next port starts
-from the current `claude-code-main` HEAD:
+After all phases are committed and reviewed, the maintainer may separately authorize
+advancing the reference branch so the next port starts from the current
+`claude-code-main` HEAD. Port-plan approval alone does not authorize this mutation.
 
 ```bash
 git checkout claude-code-main-base
@@ -415,12 +477,12 @@ After this, `git merge-base claude-code-main claude-code-main-base` will return 
 HEAD, and `git diff claude-code-main-base..claude-code-main` will be empty until the
 next upstream release.
 
-### 7.5 Update `copilot-ads` branch
+### 7.5 Update `copilot-ads` branch (separate authorization required)
 
 The `copilot-ads` branch is the ADS (Astrophysics Data System) Edition of Copilot ARS.
 It carries the same Copilot port as `copilot-main` plus native SAO/NASA ADS integration.
-After each update-and-port, it must be rebased onto the updated `copilot-main` to keep
-the two branches in sync.
+After each update-and-port, it can be rebased onto the updated `copilot-main` to keep
+the two branches in sync, but only after the maintainer separately authorizes the rebase.
 
 ```bash
 # Step 1: Rebase copilot-ads onto the updated copilot-main

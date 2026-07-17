@@ -21,10 +21,20 @@ from typing import Any
 import yaml
 from jsonschema import Draft202012Validator
 
+_HERE = Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+from citation_verification_summary import (  # noqa: E402
+    reduce_lookup_verified as _reduce_lookup_verified,
+)
+
 LABEL_ENUM = {"true", "false", "unresolvable"}
-KIND_ENUM = {"valid_doi", "valid_arxiv", "manual_exempt", "fabricated"}
+KIND_ENUM = {"valid_doi", "valid_arxiv", "manual_exempt", "fabricated",
+             "fabricated_title_only"}
 RESOLVER_NAMES = ("crossref", "openalex", "semantic_scholar", "arxiv")
-STATUS_ENUM = {"matched", "unmatched", "unreachable", "skipped"}
+# status + queried_by enums (and their status↔queried_by coherence) are now
+# enforced by _RESOLVER_OUTCOME_VALIDATOR against the shipped summary-schema $def,
+# not local constants (#332 P2).
 
 _CORPUS_ENTRY_SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
@@ -33,6 +43,23 @@ _CORPUS_ENTRY_SCHEMA_PATH = (
 _CORPUS_ENTRY_VALIDATOR = Draft202012Validator(
     json.loads(_CORPUS_ENTRY_SCHEMA_PATH.read_text(encoding="utf-8")),
     format_checker=Draft202012Validator.FORMAT_CHECKER,
+)
+
+# Validate each resolver_outcome against the SHIPPED summary-schema $def rather
+# than a hand-rolled coherence check, so the gold validator can't drift from the
+# contract it pins (the I9b single-source-of-truth philosophy, applied to shape).
+# The $def carries the status↔queried_by allOf coherence (ran → {id,title};
+# skipped/unreachable → null) plus the required-present rule that a flat enum
+# check silently under-enforced (#332 P2).
+_SUMMARY_SCHEMA_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "shared" / "contracts" / "passport" / "citation_verification_summary.schema.json"
+)
+# Safe to validate the extracted $def in isolation because resolver_outcome is
+# $ref-less today. If it ever gains a $ref into a sibling $def, build the validator
+# from the full schema document (with a registry) instead of the slice.
+_RESOLVER_OUTCOME_VALIDATOR = Draft202012Validator(
+    json.loads(_SUMMARY_SCHEMA_PATH.read_text(encoding="utf-8"))["$defs"]["resolver_outcome"]
 )
 
 
@@ -170,16 +197,26 @@ def validate(root: Path) -> list[str]:
             if arxiv_id:
                 errors.append(f"I6: {stem}.json kind={kind!r} but arxiv_id={arxiv_id!r} present (must be null)")
 
-    # I7: fabrication_intent <-> kind == "fabricated"
+    # I7: fabrication_intent <-> kind is a fabrication kind. Both `fabricated`
+    # (ID-keyed → false) and `fabricated_title_only` (no identifier → unresolvable,
+    # the C-V6(a) by-design FN fixture) are fabrications and MUST carry the marker.
+    fabrication_kinds = {"fabricated", "fabricated_title_only"}
     for stem, tup in tuples_by_id.items():
         kind = tup.get("kind")
         marker = tup.get("fabrication_intent")
-        if kind == "fabricated" and marker is not True:
-            errors.append(f"I7: {stem}.json kind=fabricated but fabrication_intent={marker!r} (must be true)")
-        if kind != "fabricated" and marker is True:
+        if kind in fabrication_kinds and marker is not True:
+            errors.append(f"I7: {stem}.json kind={kind!r} but fabrication_intent={marker!r} (must be true)")
+        if kind not in fabrication_kinds and marker is True:
             errors.append(f"I7: {stem}.json kind={kind!r} but fabrication_intent=true (must be false)")
 
     # I9: resolver_outcomes has all four resolver keys with valid status enum
+    # + valid queried_by enum (v3.11 #182 Delta 4 / C-V6(a)).
+    # I9b: every gold label must be REPRODUCIBLE by the shipped reducer (the
+    # single source of truth, C-V6(a) narrowed-false). Rather than hand-rolling
+    # the false condition here (which would drift from the reducer if C-V6(a) is
+    # ever amended), recompute each label via reduce_lookup_verified and assert
+    # it matches — pinning the gold to the reducer, not a parallel copy of its
+    # logic. Both share a single pass over expected.items().
     for tid, outcome in expected.items():
         ros = outcome.get("resolver_outcomes", {})
         for resolver in RESOLVER_NAMES:
@@ -187,12 +224,27 @@ def validate(root: Path) -> list[str]:
             if entry is None:
                 errors.append(f"I9: {tid} resolver_outcomes missing resolver {resolver!r}")
                 continue
-            status = entry.get("status")
-            if status not in STATUS_ENUM:
+            # Validate the resolver_outcome against the shipped summary-schema
+            # $def: status enum, queried_by enum, queried_by required-present, AND
+            # the status↔queried_by coherence allOf (ran → {id,title};
+            # skipped/unreachable → null). A flat enum check under-enforced the
+            # last two (#332 P2).
+            for verr in _RESOLVER_OUTCOME_VALIDATOR.iter_errors(entry):
                 errors.append(
-                    f"I9: {tid} resolver_outcomes.{resolver}.status={status!r} "
-                    f"not in {sorted(STATUS_ENUM)}"
+                    f"I9: {tid} resolver_outcomes.{resolver} violates "
+                    f"citation_verification_summary $defs.resolver_outcome: "
+                    f"{verr.message}"
                 )
+
+        recomputed = _reduce_lookup_verified(ros)
+        declared = outcome.get("lookup_verified")
+        if recomputed != declared:
+            errors.append(
+                f"I9b: {tid} lookup_verified={declared!r} but the shipped reducer "
+                f"computes {recomputed!r} from its resolver_outcomes "
+                f"(gold label must match the single-source-of-truth reducer; "
+                f"C-V6(a) narrowed-false: false needs an ID-keyed unmatched)"
+            )
 
     # I10: per-tuple corpus_entry validates against literature_corpus_entry.schema.json
     for stem, tup in tuples_by_id.items():

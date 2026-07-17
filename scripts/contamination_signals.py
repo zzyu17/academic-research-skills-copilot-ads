@@ -8,10 +8,21 @@ post-hoc backfill on pre-v3.7.3 entries.
 
 Design: docs/design/2026-05-15-issue-105-contamination-signals-backfill-design.md
 Spec: docs/design/2026-05-12-ars-v3.7.3-claim-faithfulness-and-contaminated-source-spec.md §3.2
+
+Omission reason-provenance (#511 Part A): wherever a resolver's contract below
+says "caller MUST omit field" because of API DEGRADATION (an *Unavailable
+exception), the caller additionally records the omission on the entry as
+`contamination_signal_omissions: {<field>: "api_degraded"}` so a degraded
+lookup stays distinguishable from "never computed". Derivable omissions are
+NOT recorded (manual exemption ← obtained_via='manual'; arXiv skip ← absent
+arxiv_id). Schema + mutual-exclusion rules:
+shared/contracts/passport/literature_corpus_entry.schema.json; registry row
+`contamination_signal_api_degradation` in
+shared/contracts/degradation_registry.json.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping, Protocol
+from typing import Any, Mapping, MutableMapping, Protocol
 
 # Re-export ArxivUnavailable so callers (and tests) can reference it from the
 # signals module alongside the other resolver exceptions. Dual-path import
@@ -20,6 +31,19 @@ try:
     from arxiv_client import ArxivUnavailable
 except ImportError:
     from scripts.arxiv_client import ArxivUnavailable
+
+
+# #431 §0.12.3b — the resolver-decision logic version, stored under the
+# "decision_version" key in each cached verdict value (spec-preferred form: no
+# cache-key / schema migration; pre-v5 rows simply re-resolve once under v5).
+# Bump it whenever the accept/reject logic changes so a verdict produced by a
+# DIFFERENT logic is not silently reused. v5 is the exact-title-or-bust pivot: a
+# pre-v5 row (written under the v3/v4 author-agree tiers, e.g. a `Study 1` /
+# `Study 2` same-author pair stored as `matched_by=title`) would otherwise be
+# returned as `matched` with `client.title_search` never called, bypassing the
+# v5 loop entirely — a dangerous false-positive surviving the pivot for up to the
+# 90-day TTL. A row whose stored version is absent or != this constant is a MISS.
+RESOLVER_DECISION_VERSION = "431-v5"
 
 
 # 10-venue closed list per v3.7.3 spec §3.2 + schema description.
@@ -224,19 +248,30 @@ def _cached_verdict(
         unmatched, _, _ = compute()
         return unmatched
     cached = cache.get(citation_key, resolver_name, query_form)
-    if cached is not None and "matched" in cached:
+    # #431 §0.12.3b: a hit is reusable ONLY when its stored decision version
+    # matches the current logic. A row missing `matched` (written by an
+    # older/other tool) OR carrying a stale/absent decision version (e.g. any
+    # pre-v5 `matched_by=title` row written under the author-agree tiers) is
+    # treated as a MISS — forcing a live recompute under the current logic
+    # rather than reusing a verdict a different decision path produced. Without
+    # this the #431 pivot is a no-op for every citation already cached.
+    if (
+        cached is not None
+        and "matched" in cached
+        and cached.get("decision_version") == RESOLVER_DECISION_VERSION
+    ):
         return not cached["matched"]
-    # A row missing `matched` (written by an older/other tool) is treated as a
-    # miss — force a live recompute rather than KeyError for the 90-day TTL.
     unmatched, matched_by, queried_by = compute()
     # query_form is the cache key, not part of the value — no need to echo it
-    # into the stored payload (nothing reads it back).
+    # into the stored payload (nothing reads it back). The decision version is
+    # stamped into the value so a future run under a newer logic re-resolves.
     cache.put(
         citation_key,
         resolver_name,
         query_form,
         {"matched": not unmatched, "matched_by": matched_by,
-         "queried_by": queried_by},
+         "queried_by": queried_by,
+         "decision_version": RESOLVER_DECISION_VERSION},
     )
     return unmatched
 
@@ -436,21 +471,84 @@ def build_signals_object(
     cache: optional VerificationCache (spec §2 Delta 2), threaded into both the
     S2 and arXiv resolvers. cache=None is byte-equivalent to no caching.
     """
+    return build_signals_with_omissions(
+        entry, client, arxiv_client, cache=cache)[0]
+
+
+# ---------------------------------------------------------------------------
+# #511 Part A — omission reason-provenance writer API
+# ---------------------------------------------------------------------------
+
+OMISSION_API_DEGRADED = "api_degraded"
+_OMISSIONS_FIELD = "contamination_signal_omissions"
+
+
+def build_signals_with_omissions(
+    entry: Mapping[str, Any],
+    client: SemanticScholarClient,
+    arxiv_client=None,
+    *,
+    cache=None,
+) -> tuple[dict[str, bool], dict[str, str]]:
+    """`build_signals_object` plus the #511 Part A omission reasons.
+
+    Returns `(signals, omissions)`. `omissions` carries a
+    `{field: "api_degraded"}` row for every lookup field absent BECAUSE the
+    API degraded — the distinction `compute_ss_unmatched_signal`'s None return
+    collapses (manual vs degraded), surfaced here by checking the manual
+    exemption upstream. Derivable omissions are never recorded: manual entries
+    return `({preprint...}, {})` (no lookup ran), and a missing arxiv_id skips
+    the arXiv row entirely (#331). Callers persist a non-empty `omissions` as
+    the entry's `contamination_signal_omissions` object (schema forbids empty).
+    """
     obj: dict[str, bool] = {
         "preprint_post_llm_inflection": compute_preprint_signal(entry),
     }
+    omissions: dict[str, str] = {}
+    if entry.get("obtained_via") == "manual":
+        return obj, omissions  # all lookups skipped by design — derivable
     ss = compute_ss_unmatched_signal(entry, client, cache=cache)
-    if ss is not None:
+    if ss is None:
+        # Manual is excluded above, so None here means exactly one thing:
+        # the S2 lookup degraded.
+        omissions["semantic_scholar_unmatched"] = OMISSION_API_DEGRADED
+    else:
         obj["semantic_scholar_unmatched"] = ss
     # v3.11 #182 Delta 1: arxiv signal is opt-in via an explicit client so the
     # v3.7.3 caller (migrate_literature_corpus_to_v3_7_3) stays byte-equivalent
-    # (no client → no field). Manual exemption + API degradation both omit the
-    # field (resolve returns None / raises), matching the ss field's rules.
-    if arxiv_client is not None:
+    # (no client → no field).
+    if arxiv_client is not None and entry.get("arxiv_id"):
         try:
             ax = resolve_arxiv_unmatched(entry, arxiv_client, cache=cache)
         except ArxivUnavailable:
-            ax = None
-        if ax is not None:
-            obj["arxiv_unmatched"] = ax
-    return obj
+            omissions["arxiv_unmatched"] = OMISSION_API_DEGRADED
+        else:
+            if ax is not None:
+                obj["arxiv_unmatched"] = ax
+    return obj, omissions
+
+
+def record_signal_omission(entry: MutableMapping[str, Any], field: str) -> bool:
+    """Record `{field: "api_degraded"}` on the entry. Returns True iff the
+    entry changed (idempotent re-runs return False). The caller has already
+    established the omission is degradation-caused — this helper never
+    records derivable omissions itself."""
+    omissions = entry.setdefault(_OMISSIONS_FIELD, {})
+    if omissions.get(field) == OMISSION_API_DEGRADED:
+        return False
+    omissions[field] = OMISSION_API_DEGRADED
+    return True
+
+
+def clear_signal_omission(entry: MutableMapping[str, Any], field: str) -> bool:
+    """Recovery: a later run computed the signal, so the recorded omission is
+    stale — remove it (and the object when it empties: the schema's
+    minProperties forbids an empty omissions object). Returns True iff the
+    entry changed."""
+    omissions = entry.get(_OMISSIONS_FIELD)
+    if not isinstance(omissions, dict) or field not in omissions:
+        return False
+    del omissions[field]
+    if not omissions:
+        del entry[_OMISSIONS_FIELD]
+    return True

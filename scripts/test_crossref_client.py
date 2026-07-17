@@ -329,3 +329,65 @@ def test_throttle_uses_monotonic_clock(monkeypatch):
 
     assert len(monotonic_calls) >= 1, "throttle must read time.monotonic"
     assert len(time_calls) == 0, "throttle must NOT read time.time (NTP-unsafe)"
+
+
+def test_doi_lookup_quotes_doi_path_segment(monkeypatch):
+    """DOI lookup must encode path separators/query markers before urlopen."""
+    from crossref_client import CrossrefClient
+
+    captured_urls = []
+
+    def mock_urlopen(req, *args, **kwargs):
+        captured_urls.append(req.full_url)
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({
+            "message": {
+                "title": ["Attention Is All You Need"],
+                "DOI": "10.1000/foo?bar=baz",
+            }
+        }).encode("utf-8")
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=None)
+        return mock_response
+
+    with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+        client = CrossrefClient()
+        result = client.doi_lookup_with_title_check(
+            doi="10.1000/foo?bar=baz",
+            expected_title="Attention Is All You Need",
+        )
+
+    assert result is not None
+    assert captured_urls == [
+        "https://api.crossref.org/works/10.1000%2Ffoo%3Fbar%3Dbaz"
+    ]
+
+
+def test_rejects_non_crossref_api_url_before_urlopen(monkeypatch):
+    import crossref_client
+    from crossref_client import CrossrefClient, CrossrefUnavailable
+
+    monkeypatch.setattr(crossref_client, "_API_BASE", "http://evil.example")
+    urlopen = MagicMock()
+    with patch("urllib.request.urlopen", urlopen):
+        client = CrossrefClient()
+        with pytest.raises(CrossrefUnavailable):
+            client.title_search("anything")
+
+    assert urlopen.call_count == 0
+
+
+def test_refusal_message_never_carries_mailto(monkeypatch):
+    """The non-Crossref-URL refusal strips the query string so the polite-pool
+    mailto (an email address) never lands in raised-exception text / logs
+    (#495; mirrors openalex_client.py)."""
+    import crossref_client
+    from crossref_client import CrossrefClient, CrossrefUnavailable
+
+    monkeypatch.setattr(crossref_client, "_API_BASE", "http://evil.example")
+    with patch("urllib.request.urlopen", MagicMock()):
+        client = CrossrefClient(polite_email="secret@example.com")
+        with pytest.raises(CrossrefUnavailable) as excinfo:
+            client.title_search("anything")
+
+    assert "secret@example.com" not in str(excinfo.value)
