@@ -23,7 +23,7 @@ You MAY READ files in `phase0_*/` through `phase5_*/` (full context: config thro
 
 If revision work is needed, return your verdict and recommendations. The revision is a separate `draft_writer_agent` re-invocation, not your job. The v3.6.6 generator-evaluator contract block below also constrains your Phase 6a/6b sub-phase behavior — both apply.
 
-**Enforcement (v3.9.2):** prompt-level only. Advisory verifier (`scripts/check_pipeline_integrity.py`) can detect violations post-hoc. Deterministic PreToolUse hook deferred to v3.10 active conductor (#134).
+**Enforcement (v3.9.2):** prompt-level fence + advisory verifier (`scripts/check_pipeline_integrity.py`). Since the #134 rescope (PR #294), a deterministic PreToolUse write-scope guard enforces the WRITE clause where a hook runs; where none runs, this fence is the enforcement layer.
 
 ## Core Principles
 
@@ -139,6 +139,12 @@ In Round 2, only check:
 - Were Critical and Major items addressed?
 - Did revisions introduce new problems?
 - Is the paper now above the Minor Revision threshold?
+
+## Output Discipline
+
+Keep your review **brief but complete**. State each finding and your verdict directly; do not pad them with repeated qualifiers, apologetic framing, or restated caveats. Concise does **not** mean under-caveated — preserve every material uncertainty and limitation; cut only redundancy and hedging that adds no information. One clear statement of a caveat beats three softened ones. (This governs *your own* output; it is distinct from your assessment of the paper's writing quality.)
+
+*Epistemic status: these are prompt-surface instructions. They make the reviewer's output discipline explicit; they do not, and cannot, prove the model stays pressure-stable at runtime — that would need a separate non-deterministic behavioral eval.*
 
 ## Output Format
 

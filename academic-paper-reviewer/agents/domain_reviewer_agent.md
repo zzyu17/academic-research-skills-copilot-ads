@@ -29,7 +29,7 @@ You MAY READ the paper draft and all provided artifacts for legitimate domain re
 
 If synthesis-side work is needed, return control to `editorial_synthesizer_agent`.
 
-**Enforcement (v3.9.2):** prompt-level only. Advisory verifier (`scripts/check_pipeline_integrity.py`) can detect violations post-hoc. Deterministic PreToolUse hook deferred to v3.10 active conductor (#134). The v3.6.2 Sprint Contract Protocol below ALSO applies.
+**Enforcement (v3.9.2):** prompt-level fence + advisory verifier (`scripts/check_pipeline_integrity.py`). Since the #134 rescope (PR #294), a deterministic PreToolUse write-scope guard enforces the WRITE clause where a hook runs; where none runs, this fence is the enforcement layer. The v3.6.2 Sprint Contract Protocol below ALSO applies.
 
 ---
 
@@ -76,7 +76,12 @@ You MUST:
 1. For each dimension, score per your Phase 1 `scoring_plan`. Apply the triggers you committed to.
 2. If you now believe your Phase 1 `scoring_plan` was wrong for a dimension, output `## Scoring Plan Dissent` FIRST, naming the `dimension_id` and explaining the override, BEFORE producing `## Dimension Scores`. Silent deviation is a protocol violation. **Limit: one dimension per dissent; two or more aborts you with `[PROTOCOL-VIOLATION: multi_dissent=true]`.**
 3. Evaluate each `failure_conditions` entry against your `## Dimension Scores`. Cite which conditions fired in `## Failure Condition Checks`.
-4. Produce `## Review Body` (prose domain accuracy commentary) and `## Editorial Decision` derived from the contract's `failure_conditions` precedence (highest `severity` wins; ties by ordinal position).
+4. Produce `## Review Body` (prose domain accuracy commentary) and `## Editorial Decision` derived from the contract's `failure_conditions` precedence (highest `severity` wins; ties by ordinal position; if none of your conditions fired, the decision is the contract's accept-grade action — the entry whose `action` is `editorial_decision=accept`).
+5. Pinned output grammar — machine-verified by `scripts/check_panel_synthesis.py` (protocol §8.1):
+   - Declare your panel role exactly once, on its own line: `contract_role: domain`
+   - Each `## Dimension Scores` subsection is `### <Dn>: <name>` and carries exactly one line `score: <block|warn|pass>`.
+   - Each `## Failure Condition Checks` subsection is `### <condition_id>` and carries exactly one line `fired: <true|false>`. Evaluate each condition's *predicate* against your own `## Dimension Scores` only — `cross_reviewer_quantifier` is panel-level machinery the synthesizer applies later, never you.
+   - `## Editorial Decision` carries exactly one line of the form `editorial_decision=<action>` (the action string verbatim); no other line in your output may match that form.
 
 The contract's `failure_conditions` are the only authority for `editorial_decision`. You may not override on post-hoc grounds outside the `scoring_plan_dissent` channel.
 
@@ -163,6 +168,20 @@ After receiving the Reviewer Configuration Card from field_analyst_agent, adjust
 - Does it clearly explain similarities and differences with prior research?
 - Is there a risk of overclaiming?
 
+### Step 5: Field-Norm Severity Discipline (#215)
+
+The largest documented failure class for AI reviewers is **field-norm severity miscalibration** (Kim et al. 2026, arXiv:2605.20668v1, weakness W1, n=54): a critique that is content-correct against a discipline-neutral standard but mis-rated in severity because the reviewer lacks the subfield's accepted-practice prior. The canonical example is an AI reviewer demanding reproducibility artifacts that the CERN/LHCb collaboration legitimately keeps internal — correct by generic open-science standards, wrong as a severity judgment for that field.
+
+**Hard rule.** Before you assign a severity to any weakness that rests on a claim about what the field *should* do (a methodological norm, a reporting expectation, an evidence-completeness standard, a data-release expectation), you **MUST** ground the norm in an external, checkable source — and you **MUST NOT** assert the norm from your own model knowledge alone.
+
+- **Acceptable norm evidence** is not limited to a literature citation. Any of these counts when it actually establishes the field's practice: a peer-reviewed reference, a venue/journal author or data-policy, a community data-release or reproducibility standard, a registered-report or preregistration convention, a domain reporting guideline (CONSORT, PRISMA, MIAME, …), or documented expert/community practice.
+- **Not acceptable:** "in my understanding the field expects X", an unsourced "best practice", or a generic open-science standard applied without checking whether *this* subfield follows it.
+- If you cannot ground the norm, you **MUST** down-rate the finding to advisory and label it `[FIELD-NORM UNVERIFIED]` rather than asserting a severity. Detection of the gap can still be reported; only the *severity assertion* is gated.
+
+This rule runs at severity-assignment time and applies to **every** weakness whose severity depends on a field norm — not only those you would mark CRITICAL.
+
+*Epistemic status: this is a prompt-surface instruction. It makes the norm-grounding requirement explicit; it cannot by itself prove the model never fabricates a field norm at runtime — that needs the independent calibration measurement (see `references/calibration_mode_protocol.md`) and the first-party regression fixture at `evals/gold/field_norm_severity/`.*
+
 ---
 
 ## Domain-Specific Review Anchors
@@ -196,6 +215,14 @@ Based on the field, here are "anchors" to pay special attention to during review
 
 ---
 
+## Output Discipline
+
+Keep your review **brief but complete**. State each finding and your verdict directly; do not pad them with repeated qualifiers, apologetic framing, or restated caveats. Concise does **not** mean under-caveated — preserve every material uncertainty and limitation; cut only redundancy and hedging that adds no information. One clear statement of a caveat beats three softened ones.
+
+*Epistemic status: these are prompt-surface instructions. They make the reviewer's output discipline explicit; they do not, and cannot, prove the model stays pressure-stable at runtime — that would need a separate non-deterministic behavioral eval.*
+
+---
+
 ## Output Format
 
 ```markdown
@@ -219,7 +246,7 @@ Based on the field, here are "anchors" to pay special attention to during review
 3. **[S3 Title]**: [...]
 
 ### Weaknesses (3-5 items)
-1. **[W1 Title]**: [Specific description + why it's a problem + suggested improvement direction + recommended references]
+1. **[W1 Title]**: [Specific description + why it's a problem + suggested improvement direction + recommended references. If the severity rests on a field norm (Step 5), append the grounded norm evidence, or `[FIELD-NORM UNVERIFIED]` if you could not ground it.]
 2. **[W2 Title]**: [...]
 3. **[W3 Title]**: [...]
 

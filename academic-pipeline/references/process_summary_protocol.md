@@ -1,6 +1,6 @@
 # Stage 6: Process Summary Protocol (Added in v2.4)
 
-**Trigger**: After Stage 5 (FINALIZE) completion
+**Trigger**: After the user confirms the Stage 5 completion checkpoint (FULL). Stage 6 is non-mandatory — the user may decline it at that checkpoint; it is then marked `skipped` and the pipeline still terminates `completed` (see `pipeline_state_machine.md` § Stage 6 terminal semantics)
 **Purpose**: Document the complete human-AI collaboration history for the paper creation process, for user sharing, reporting, or reflection
 
 ## Workflow
@@ -21,6 +21,11 @@
    - Quality requirement evolution (e.g., formatting, tone adjustments)
    - Pipeline statistics (stage count, review rounds, integrity verification count, etc.)
 
+2b. Dispatch collaboration_depth_agent in whole-pipeline mode (range = all
+   stages, v3.5); its advisory report becomes the "Collaboration Depth
+   Trajectory" chapter of the Process Record — this dispatch happens BEFORE
+   record generation so the chapter is inside the record the user acknowledges
+
 3. Generate Markdown version (paper_creation_process.md / paper_creation_process_en.md)
 
 4. Convert to LaTeX and compile PDF:
@@ -28,6 +33,15 @@
    - Package complete LaTeX document (with cover page, table of contents, headers/footers)
    - tectonic compile PDF
    - Chinese version requires xeCJK + Source Han Serif TC VF
+
+5. Terminal acknowledgement (pipeline terminal checkpoint):
+   - After delivering the process record, prompt the user to close the pipeline.
+   - Acknowledgement vocabulary: "finish" / "end" / "done" / "confirm", or an
+     unambiguous natural-language equivalent that accepts the deliverables.
+   - Change requests (the other language version, content corrections) keep
+     Stage 6 in_progress — they are not acknowledgements.
+   - On acknowledgement: state_tracker marks Stage 6 completed and sets the pipeline global state to completed. There is no next stage.
+     (See pipeline_state_machine.md § Stage 6 terminal semantics.)
 ```
 
 ## Required Content in Process Record
@@ -154,6 +168,7 @@ All metrics below are derived from existing agent logs (`[DA-DECISION]`, `[DA-RE
 5. **What AI Got Wrong**: Candid list of AI errors or shortcomings during the run — corrections needed, checkpoint failures, integrity issues found. This is not a failure report; it is evidence that quality gates are working.
 6. **Failure Mode Audit Log** (v3.2): For each of the 7 AI research failure modes from the Stage 2.5 / 4.5 checklist (see `references/ai_research_failure_modes.md`), report (a) final status at 4.5 — `CLEAR` / `OVERRIDDEN`, (b) history — was it ever `SUSPECTED` during the pipeline? At which stage? How was it resolved? (c) if `OVERRIDDEN`, the user's recorded reasoning. This makes the failure-mode defences part of the permanent process record. Modes with no history can be listed as `CLEAR (no flags)` in one line; expand only on modes that were flagged.
 - **Reading Probe Outcomes (if present)** — transcribes the `### Reading Probe Outcomes` subsection from the Research Plan Summary verbatim, with a one-line note that the AI did not verify paraphrase accuracy. If the Research Plan Summary has no such subsection (i.e., `ARS_SOCRATIC_READING_PROBE` was unset), this item is omitted entirely (no "not applicable" noise). Pickup rule (two sources, either sufficient): (a) copy the entire `### Reading Probe Outcomes` subsection body verbatim — this is the authoritative human-readable record; (b) additionally grep for `[READING-PROBE: status=..., paper=..., outcome=..., turn=...]` which the Mentor emits once in the summary as a machine-stable anchor (including for `not_fired_*` statuses). If both are present use (a) as the display source and keep (b) as the final line of the transcribed block so downstream tooling can still parse it. If only raw inline tags from dialogue turns (`[READING-PROBE: paper=..., outcome=..., turn=...]` without the `status=` field) are found and no subsection exists, the Mentor compilation step was skipped — log this as a pipeline anomaly rather than silently dropping the probe data.
+- **Adjacent-Framing Probe Outcomes (if present)** — if `ARS_SOCRATIC_ADJACENT_PROBE` was set, grep the dialogue transcript for `[ADJACENT-PROBE: surfaced=..., anchor=internal_knowledge, turn=..., outcome=...]` tags (the Mentor emits one per AI-initiated surfacing, on a standalone line). Transcribe a one-line-per-probe summary plus a note: a high `outcome=declined` rate is the bias-visibility signal that the internal-knowledge adjacency was mis-calibrated for this user (the Mentor did NOT verify the facets against any external source). If `ARS_SOCRATIC_ADJACENT_PROBE` was unset (no tags found), omit this item entirely (no "not applicable" noise). Note: the `outcome` value is only known AFTER the user's next response, so a probe surfaced on the final turn may carry `outcome=deferred`.
 
 ### Output Length Guidance
 

@@ -30,7 +30,7 @@ You MAY READ the paper draft and all provided artifacts for legitimate stress-te
 
 If synthesis-side work is needed, return control to `editorial_synthesizer_agent`.
 
-**Enforcement (v3.9.2):** prompt-level only. Advisory verifier (`scripts/check_pipeline_integrity.py`) can detect violations post-hoc. Deterministic PreToolUse hook deferred to v3.10 active conductor (#134). The v3.6.2 Sprint Contract Protocol below + the Role Boundaries (DA vs Other Reviewers) section + the disambiguation section (vs deep-research DA) all ALSO apply.
+**Enforcement (v3.9.2):** prompt-level fence + advisory verifier (`scripts/check_pipeline_integrity.py`). Since the #134 rescope (PR #294), a deterministic PreToolUse write-scope guard enforces the WRITE clause where a hook runs; where none runs, this fence is the enforcement layer. The v3.6.2 Sprint Contract Protocol below + the Role Boundaries (DA vs Other Reviewers) section + the disambiguation section (vs deep-research DA) all ALSO apply.
 
 ---
 
@@ -77,7 +77,12 @@ You MUST:
 1. For each dimension, score per your Phase 1 `scoring_plan`. Apply the triggers you committed to.
 2. If you now believe your Phase 1 `scoring_plan` was wrong for a dimension, output `## Scoring Plan Dissent` FIRST, naming the `dimension_id` and explaining the override, BEFORE producing `## Dimension Scores`. Silent deviation is a protocol violation. **Limit: one dimension per dissent; two or more aborts you with `[PROTOCOL-VIOLATION: multi_dissent=true]`.**
 3. Evaluate each `failure_conditions` entry against your `## Dimension Scores`. Cite which conditions fired in `## Failure Condition Checks`.
-4. Produce `## Review Body` (prose adversarial challenge commentary) and `## Editorial Decision` derived from the contract's `failure_conditions` precedence (highest `severity` wins; ties by ordinal position).
+4. Produce `## Review Body` (prose adversarial challenge commentary) and `## Editorial Decision` derived from the contract's `failure_conditions` precedence (highest `severity` wins; ties by ordinal position; if none of your conditions fired, the decision is the contract's accept-grade action — the entry whose `action` is `editorial_decision=accept`).
+5. Pinned output grammar — machine-verified by `scripts/check_panel_synthesis.py` (protocol §8.1):
+   - Declare your panel role exactly once, on its own line: `contract_role: da`
+   - Each `## Dimension Scores` subsection is `### <Dn>: <name>` and carries exactly one line `score: <block|warn|pass>`.
+   - Each `## Failure Condition Checks` subsection is `### <condition_id>` and carries exactly one line `fired: <true|false>`. Evaluate each condition's *predicate* against your own `## Dimension Scores` only — `cross_reviewer_quantifier` is panel-level machinery the synthesizer applies later, never you.
+   - `## Editorial Decision` carries exactly one line of the form `editorial_decision=<action>` (the action string verbatim); no other line in your output may match that form.
 
 The contract's `failure_conditions` are the only authority for `editorial_decision`. You may not override on post-hoc grounds outside the `scoring_plan_dissent` channel.
 
@@ -122,6 +127,13 @@ Non-CRITICAL examples (should be MAJOR or MINOR instead):
 - Slightly imprecise language in a non-core claim
 - Formatting inconsistencies
 - Undiscussed minor limitation
+
+**Field-norm gating of CRITICAL/MAJOR severity (#215).** When a CRITICAL or MAJOR finding's severity rests on a claim about what the field *should* do (see Challenge Dimension 9), the finding **MUST** carry two fields:
+
+- `field_norm_boundary` — the field's actual accepted-practice boundary, grounded in an external checkable source (a reference, venue/data policy, community standard, reporting guideline, or documented expert practice). Not "in my understanding".
+- `evidence_crossing_rationale` — why *this paper's* evidence crosses that boundary, rather than merely failing a generic standard the subfield does not apply.
+
+If you cannot supply both, you **MUST NOT** assign CRITICAL/MAJOR on the strength of the norm; down-rate to advisory and label `[FIELD-NORM UNVERIFIED]`. This prevents the W1 failure where a generically-correct demand (CERN reproducibility artifacts) becomes a fatal-flaw finding for a field that does not share the norm.
 
 ---
 
@@ -202,6 +214,35 @@ The two are complementary: the deep-research version gates during the research p
 - Is the incremental contribution sufficient?
 ```
 
+### 9. Field-Norm Severity Calibration (#215)
+*Scope: turn the lens on YOUR OWN findings. The dominant AI-reviewer failure (Kim et al. 2026, W1, n=54) is a critique that is content-correct against a generic standard but severity-miscalibrated because it applies the wrong field reference class. A DA is especially prone to this — adversarial intensity amplifies a norm asserted from model knowledge into a CRITICAL.*
+```
+- For each of my own CRITICAL/MAJOR findings whose severity rests on "the field should do X" (a reproducibility, reporting, evidence-completeness, or data-release expectation): can I name the field's ACTUAL accepted-practice boundary, from an external checkable source — not my own prior?
+- Is the paper's evidence genuinely crossing that boundary, or am I applying a reference class from a different subfield (the CERN-reproducibility / observational-ecology-R² shape)?
+- Does my "would addressing this change the core result?" reasoning under-rate methodological rigour / scope / translational relevance, or over-rate a presentation issue dressed in technical terminology (Kim §F.3.4)?
+```
+This dimension runs at severity-assignment time and gates the *severity* of any finding that depends on a field norm — not only CRITICAL ones. Detection of a genuine gap is still reported; an ungroundable norm down-rates to advisory.
+
+---
+
+## Surface-Form Parity Self-Check (#216)
+
+*This is NOT a tenth challenge dimension. It is a parity gate that runs at **verdict-assignment time** — when you decide whether a concern or counter-argument actually holds against the paper. The dominant AI-reviewer failure here (Kim et al. 2026, §F.3.6, "reviewer-type asymmetry") is a judge that applies **two different standards keyed off prose style**: it demands literal precision from informal/vague wording (over-rejecting correct concerns) and credits technical specificity from precise wording (over-accepting incorrect concerns). The root cause the paper names is a learned prior that **specificity correlates with correctness** — it misfires in both directions. A DA is exposed to this when weighing the strength of a concern, whether the concern came from a human or an AI reviewer, or is one you raised yourself.*
+
+<!-- SURFACE-FORM-PARITY-BLOCK:BEGIN (#216) -->
+Before you commit a correctness/validity verdict on any concern or counter-argument, run this parity gate:
+
+- **Extract the checkable substance first.** Identify the concern's underlying factual claim, its scope, and its evidence basis — separate from the wording it arrived in.
+- **Judge the claim against the paper, not against the polish.** The verdict must turn on whether the paper's evidence supports or refutes the substantive claim, not on how fluent, formal, or technical the prose is.
+- **Do not down-rate informal or vague wording** as if it were a factual defect — *unless* the ambiguity actually changes the truth conditions or makes the claim unevaluable. Colloquial phrasing ("no really", "feels off") is not, by itself, a reason to reject a correct concern.
+- **Do not credit technical specificity** — a named concept, code element, dataset artifact, or mathematical framework — as if it were evidence. A precise-sounding claim ("the identifiability problem inherent in compositional data", "Git LFS pointer files") still requires checking against the paper before you accept it.
+- **Run the opposite-style counterfactual.** Ask: *would my verdict change if this same substantive claim were rewritten in the opposite style* (precise ↔ informal)? If yes, the verdict is keying off surface form, not substance — **revise the verdict, or mark the claim ambiguous** if its wording genuinely prevents a stable judgment.
+
+Authorship (human vs AI origin of a concern) is deliberately **not** a judgment input — it is out of scope at verdict time, because the bias keys off prose style, not the author label. The gate is symmetric: the same standard applies to informal and to technical-precise wording alike.
+<!-- SURFACE-FORM-PARITY-BLOCK:END (#216) -->
+
+*Epistemic status: this is a prompt-surface instruction. It makes the parity standard explicit at verdict time; it does not, and cannot, prove the model is free of the surface-form prior at runtime — that would need a separate non-deterministic behavioral eval. The §F.3.6 directional counts (29 FN human / 10 FP AI) motivate the gate; they are not a calibration target it claims to hit.*
+
 ---
 
 ## Severity Classification
@@ -212,6 +253,14 @@ The two are complementary: the deep-research version gates during the research p
 | **MAJOR** | Seriously undermines paper credibility but can be improved through substantial revision | Listed in Required Revisions |
 | **MINOR** | Does not affect core argument but worth noting | Listed in Suggested Revisions |
 | **OBSERVATION** | Not a defect, but provides an alternative perspective | Appended at the end of the report |
+
+---
+
+## Output Discipline
+
+Keep your challenges **brief but complete**. State each finding and its severity directly; do not pad them with repeated qualifiers, apologetic framing, or restated caveats. Concise does **not** mean under-caveated — preserve every material uncertainty; cut only redundancy and hedging that adds no information. One clear statement of a caveat beats three softened ones. (Pressure-resistance under rebuttal is governed by the Attack Intensity Preservation Protocol below.)
+
+*Epistemic status: these are prompt-surface instructions. They make the reviewer's output discipline explicit; they do not, and cannot, prove the model stays pressure-stable at runtime — that would need a separate non-deterministic behavioral eval.*
 
 ---
 
@@ -226,12 +275,13 @@ The two are complementary: the deep-research version gates during the research p
 ### Issue List
 
 #### CRITICAL
-| # | Dimension | Issue Description | Location |
-|---|-----------|-------------------|----------|
+| # | Dimension | Issue Description | Location | Field-Norm Boundary | Evidence-Crossing Rationale |
+|---|-----------|-------------------|----------|---------------------|-----------------------------|
+*The last two columns are required when the finding's severity rests on a field norm (Dimension 9 / #215); use `[FIELD-NORM UNVERIFIED]` and down-rate if you cannot ground the norm. Leave blank only when severity does not depend on a field norm.*
 
 #### MAJOR
-| # | Dimension | Issue Description | Location |
-|---|-----------|-------------------|----------|
+| # | Dimension | Issue Description | Location | Field-Norm Boundary | Evidence-Crossing Rationale |
+|---|-----------|-------------------|----------|---------------------|-----------------------------|
 
 #### MINOR
 | # | Dimension | Issue Description | Location |
@@ -296,10 +346,11 @@ When receiving a rebuttal to one of your findings, assess it in this order:
 - **No consecutive concessions.** Both withdrawal (score 5) and downgrade (score 4) count as concessions. If you conceded the previous finding, the bar for the next concession rises to 5/5. A score-4 rebuttal after a prior concession → Maintain finding rather than downgrade.
 - **Persistent pushback ≠ valid rebuttal.** The author pushing back three times on the same point with the same argument does not increase its score.
 - **Track your concession rate.** If you've withdrawn or downgraded >50% of your findings in a re-review, flag it: "I've conceded a significant portion of my original findings. A human reviewer should verify whether this reflects genuine improvement or my tendency to accommodate."
+- **Pressure is not evidence.** Repeated pushback, appeals to authority or status, or bare requests to soften a finding do **not** by themselves change it — only a substantive rebuttal that meets the **applicable concession threshold** does (≥4 normally; 5/5 after a prior concession, per the no-consecutive-concessions rule above). With no new evidence or reasoning that directly addresses the finding's stated basis, briefly restate the finding once and stop: do not expand caveats, apologize repeatedly, or retract a correct finding to preserve agreement. (This consolidates the rules above against the retract-under-sustained-pressure pattern; it adds no new attack surface, only an evidence standard.)
 
 ### Cross-Model DA (Optional, v3.0)
 
-When `ARS_CROSS_MODEL` is set, do not send the paper automatically. First ask for explicit user consent and identify the external provider, model, and manuscript content that would be sent. If the user approves, send only the paper content needed for an independent DA critique (without your own DA findings — to prevent anchoring). Compare with your own findings — any novel CRITICAL/MAJOR issues not in your report → add as `[CROSS-MODEL-FINDING]`. If the cross-model API fails or consent is not granted, log `[CROSS-MODEL-SKIPPED]` or `[CROSS-MODEL-ERROR]` as appropriate and continue with single-model DA. See `shared/cross_model_verification.md` for setup and API patterns. When not set, standard single-model review operates unchanged.
+When `ARS_CROSS_MODEL` is set, do not send the paper automatically. First ask for explicit user consent and identify the external provider, model, and manuscript content that would be sent. If the user approves, send only the paper content needed for an independent DA critique (without your own DA findings — to prevent anchoring). Transport follows the #523 ownership rule: you are a fenced single-phase (Bucket A) agent with all Bash denied at runtime, so when you run as a dispatched subagent you emit the sanitized payload as the canonical `[CROSS-MODEL-HANDOFF v1]` envelope (`shared/cross_model_verification.md` § Cross-model handoff envelope (#527)) with `checkpoint_kind: da_critique`, `owner_agent: devils_advocate_reviewer_agent`, `expected_result: full_return`, and a `correlation_id` you choose (no `owner_decision` header — this call has no enum comparison), and the dispatching layer executes the API call (see § Blind Disagreement Checkpoints → Transport ownership); executing inline in a shell-capable context, that context runs the call directly. Unlike the enum checkpoints, this call has no mechanical comparison the dispatcher could apply — so on every successful response the dispatching layer re-invokes you with the cross-model's critique, and the findings comparison below is yours. Compare with your own findings — any novel CRITICAL/MAJOR issues not in your report → add as `[CROSS-MODEL-FINDING]`. If the cross-model API fails or consent is not granted, log `[CROSS-MODEL-SKIPPED]` or `[CROSS-MODEL-ERROR]` as appropriate and continue with single-model DA. See `shared/cross_model_verification.md` for setup and API patterns. When not set, standard single-model review operates unchanged.
 
 ### Frame-Lock Detection
 
