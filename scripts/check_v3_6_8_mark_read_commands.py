@@ -1,77 +1,57 @@
-"""CI lint for the /ars-mark-read + /ars-unmark-read plugin commands.
+"""Lint Copilot CommandDefinitions for /ars-mark-read and /ars-unmark-read.
 
-Per v3.6.8 spec §3.6 + Step 7 (round-2 R2-002 amend) acceptance criteria:
-the 2 commands must exist, carry the validation rule (citation_key against
-`literature_corpus[]`), reference the peer-file write target
-(`<passport-stem>_human_read_log.yaml`) NOT entry frontmatter, and declare
-`model: sonnet` routing (per feedback_no_haiku.md discipline).
-
-Run from repo root:
-    python3 scripts/check_v3_6_8_mark_read_commands.py
+Copilot CLI does not load ``commands/*.md``. The live command authority is
+``extension.mjs``; this check pins the same v3.6.8 user-visible contract there.
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
 
-REQUIRED_COMMANDS = ("ars-mark-read.md", "ars-unmark-read.md")
-
-# Tokens each command body MUST carry to preserve the user-visible contract.
-# Drift on any of these silently weakens the gate.
-REQUIRED_TOKENS = (
-    "literature_corpus",  # validation rule reference
-    "human_read_log",     # peer-file write target
-    "model: sonnet",      # routing per feedback_no_haiku.md
-)
-
-# Enforce canonical CLI dispatch pattern (PR #197 local convention):
-# Prose instructions are fragile; using a literal bash block with $ARGUMENTS
-# ensures deterministic argument parsing and shell-safe token handling.
-# This is a repo-local policy introduced by #197, not a §3.6 Step 7 spec rule.
-REQUIRED_BLOCK = "Implementation:\n```bash\npython3 scripts/ars_mark_read.py $ARGUMENTS"
+COMMANDS = {
+    "ars-mark-read": "ars_mark_read.py",
+    "ars-unmark-read": "ars_unmark_read.py",
+}
+REQUIRED_TOKENS = ("literature_corpus", "human_read_log", 'modelRoutingHint("execution")')
 
 
-def main(argv: list[str] | None = None) -> int:
-    repo_root = Path.cwd()
-    cmds_dir = repo_root / "commands"
+def _definition_block(source: str, command: str) -> str | None:
+    marker = f'name: "{command}"'
+    start = source.find(marker)
+    if start < 0:
+        return None
+    next_definition = source.find("\n    {\n      name:", start + len(marker))
+    return source[start:] if next_definition < 0 else source[start:next_definition]
+
+
+def check(root: Path) -> list[str]:
+    extension = root / "extension.mjs"
+    if not extension.is_file():
+        return ["extension.mjs: missing Copilot command authority"]
+    source = extension.read_text(encoding="utf-8")
     errors: list[str] = []
-
-    for cmd_name in REQUIRED_COMMANDS:
-        path = cmds_dir / cmd_name
-        if not path.exists():
-            errors.append(
-                f"commands/{cmd_name}: missing (spec §3.6 Step 7 acceptance: "
-                f"2 commands MUST exist)"
-            )
+    for command, script in COMMANDS.items():
+        block = _definition_block(source, command)
+        if block is None:
+            errors.append(f"extension.mjs: missing CommandDefinition {command!r}")
             continue
-            
-        body = path.read_text(encoding="utf-8")
-        
-        # 1. Check for required tokens
-        for token in REQUIRED_TOKENS:
-            if token not in body:
+        for token in (*REQUIRED_TOKENS, script):
+            if token not in block:
                 errors.append(
-                    f"commands/{cmd_name}: missing required token "
-                    f"{token!r} (spec §3.6 Step 7 contract)"
+                    f"extension.mjs: {command!r} missing required token {token!r}"
                 )
-        
-        # 2. Check for canonical implementation block (Moved outside token loop)
-        if REQUIRED_BLOCK not in body:
-            errors.append(
-                f"commands/{cmd_name}: missing compliant 'Implementation: ```bash' block "
-                f"(PR #197 local convention: must use canonical bash block with $ARGUMENTS for deterministic argument parsing)"
-            )
+    return errors
 
+
+def main() -> int:
+    errors = check(Path.cwd())
     if errors:
-        for e in errors:
-            print(e, file=sys.stderr)
+        for error in errors:
+            print(error, file=sys.stderr)
         return 1
-
-    print(
-        f"[v3.6.8 mark-read commands lint] PASSED "
-        f"({len(REQUIRED_COMMANDS)} command(s) scanned)"
-    )
+    print("[v3.6.8 mark-read commands lint] PASSED (2 Copilot definitions scanned)")
     return 0
 
 

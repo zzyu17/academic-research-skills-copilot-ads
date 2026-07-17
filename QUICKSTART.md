@@ -18,7 +18,7 @@ When you start your next Copilot CLI session with an academic prompt, the `ars-b
 1. Detect that the ARS extension is not yet registered
 2. Ask you to approve running `scripts/setup-copilot-extension.sh` (one bash permission)
 3. Create the extension symlink and `.bootstrapped` marker
-4. Reload extensions automatically — 13 slash commands (`/ars-full`, `/ars-plan`, etc.) are activated immediately within the same session
+4. Reload extensions automatically — 16 slash commands (`/ars-full`, `/ars-plan`, etc.) are activated immediately within the same session
 
 On all subsequent sessions, the bootstrap skill exits silently — routing rules are injected into agent context without any user-facing prompt.
 
@@ -77,25 +77,26 @@ This triggers the full 10-stage pipeline. Budget ~$4-6 in API costs and 2-4 hour
 
 ## Slash commands
 
-**Mode-specific** (13, requires extension setup):
-`/ars-full`, `/ars-plan`, `/ars-outline`, `/ars-revision`, `/ars-revision-coach`, `/ars-abstract`, `/ars-lit-review`, `/ars-reviewer`, `/ars-format-convert`, `/ars-citation-check`, `/ars-disclosure`, `/ars-mark-read`, `/ars-unmark-read`
+**Mode-specific and utilities** (16, requires extension setup):
+`/ars-full`, `/ars-plan`, `/ars-outline`, `/ars-revision`, `/ars-revision-coach`, `/ars-abstract`, `/ars-lit-review`, `/ars-reviewer`, `/ars-format-convert`, `/ars-citation-check`, `/ars-disclosure`, `/ars-mark-read`, `/ars-unmark-read`, `/ars-cache-invalidate`, `/ars-3w`, `/ars-rebuttal-audit`
 
 **Skill entry points** (5, available immediately after plugin install):
 `/academic-research-skills:deep-research`, `/academic-research-skills:academic-paper`, `/academic-research-skills:academic-paper-reviewer`, `/academic-research-skills:academic-pipeline`, `/academic-research-skills:ars-bootstrap`
 
 ## Model routing (optional)
 
-For BYOK users, tiered model dispatch:
+ARS uses the session model by default. Opt in to the v3.16 model-tiering policy with:
 
 ```bash
-export ARS_MODEL_ARCHITECT="claude-opus-4-5"    # architect tier
-export ARS_MODEL_EXECUTION="claude-sonnet-4-5"   # execution tier
+export ARS_MODEL_TIERING="economy"        # execution roles step down one tier
+# or: export ARS_MODEL_TIERING="quality-boost"  # judgment roles use the frontier tier
 ```
 
-Without env vars, all dispatches use the session default model.
+Without the variable, all dispatches use the session model. See [`shared/model_tiering.md`](shared/model_tiering.md) for role classifications and precedence.
 
 ## What's next?
 
 - [Full README](README.md) — all features, modes, and changelog
 - [中文版](README.zh-TW.md) — Traditional Chinese version
+- [한국어](README.ko-KR.md) — Korean version
 - [Pipeline showcase](examples/showcase/) — real artifacts from a complete pipeline run

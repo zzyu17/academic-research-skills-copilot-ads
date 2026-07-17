@@ -64,13 +64,13 @@ v3.6.4 附三個 reference Python adapter，位於 `scripts/adapters/`：
 
 ```bash
 # 1. Install adapter dependencies (PyYAML + jsonschema, already in requirements-dev.txt)
-pip install -r requirements-dev.txt
+python3 -m pip install -r requirements-dev.txt
 
 # 2. Run a reference adapter (pick one that matches your corpus source).
 #    Both --passport and --rejection-log are required.
-python scripts/adapters/folder_scan.py --input /path/to/pdfs               --passport passport.yaml --rejection-log rejection_log.yaml
-python scripts/adapters/zotero.py      --input my-zotero-export.json       --passport passport.yaml --rejection-log rejection_log.yaml
-python scripts/adapters/obsidian.py    --input ~/Obsidian/Lit\ Notes       --passport passport.yaml --rejection-log rejection_log.yaml
+python3 scripts/adapters/folder_scan.py --input /path/to/pdfs               --passport passport.yaml --rejection-log rejection_log.yaml
+python3 scripts/adapters/zotero.py      --input my-zotero-export.json       --passport passport.yaml --rejection-log rejection_log.yaml
+python3 scripts/adapters/obsidian.py    --input ~/Obsidian/Lit\ Notes       --passport passport.yaml --rejection-log rejection_log.yaml
 
 # 3. Pass the resulting passport.yaml into your ARS session
 #    (concrete invocation depends on which skill you're running — see scripts/adapters/README.md)
@@ -90,39 +90,46 @@ ARS 暴露若干 opt-in flag，全部預設 OFF；設定後僅影響當前 sessi
 | `ARS_SOCRATIC_READING_PROBE=1` | v3.5.1 | 啟用 `socratic_mentor_agent` 的讀書檢查 probe layer。僅 goal-oriented intent；使用者引用過具體論文時最多觸發一次；婉拒不留紀錄懲罰。 | `deep-research/agents/socratic_mentor_agent.md` |
 | `ARS_PASSPORT_RESET=1` | v3.6.3 | 把每個 FULL checkpoint 提升為 context 重置邊界。**emit** boundary entry 必須設此 flag；新 session 用 `resume_from_passport=<hash>` 續跑**不需要** flag。`systematic-review` 模式下 flag ON 時，每個 FULL checkpoint 一律強制重置。 | `academic-pipeline/references/passport_as_reset_boundary.md` |
 | `ARS_CROSS_MODEL_SAMPLE_INTERVAL` | v3.5.0 | 跨模型完整性抽查的取樣間隔（advisory） | `shared/cross_model_verification.md` |
+| `ARS_VERIFICATION_CACHE_PATH` | v3.11 | 覆寫引用查驗 cache 的位置。Cache 仍保持啟用，此變數只改路徑。 | `scripts/verification_cache.py` |
+| `ARS_MODEL_TIERING` | v3.16.0 | Opt-in 派工模型分層：`economy` 讓 execution 角色降一階（樓地板為 Opus 級）；`quality-boost` 在完整性與最終審查檢查點把 judgment 角色升到 frontier 級。未設定時沿用 session model；無效值只警告一次並視同未設定。 | `shared/model_tiering.md` |
 
 ---
 
-## 跨模型驗證（選用，Claude Code 參考）
+## 跨模型驗證（選用）
 
-ARS 使用 Claude Opus 4.7 即可完整運作。想要更高信心，可選擇啟用第二 AI 模型來獨立驗證完整性檢查，並挑戰魔鬼代言人。
+ARS 使用繼承的 Copilot CLI session model 即可完整運作。想要更高信心，可選擇啟用第二 AI 模型來獨立驗證完整性檢查，並挑戰魔鬼代言人。
 
 ### 快速設定
 
 ```bash
 # Step 1: Set your API key (choose one or both)
-export OPENAI_API_KEY="sk-your-key-here"        # For GPT-5.4 Pro
+export OPENAI_API_KEY="sk-your-key-here"        # For GPT-5.5 / GPT-5.5 Pro
 export GOOGLE_AI_API_KEY="AIza-your-key-here"    # For Gemini 3.1 Pro
 
 # Step 2: Choose your cross-verification model
-export ARS_CROSS_MODEL="gpt-5.4-pro"            # Best reasoning
+export ARS_CROSS_MODEL="gpt-5.5"                # Recommended pair (gpt-5.5-pro = strongest reasoning, ~6x cost)
 # or: export ARS_CROSS_MODEL="gemini-3.1-pro-preview"  # Strong at factual verification
+# or: export ARS_CROSS_MODEL="gpt-5.6-sol"      # Frontier, provisional pending ARS validation
 
-# Step 3: Run Claude Code as normal — cross-verification activates automatically
-claude
+# Optional: reasoning effort for OpenAI verifier calls (unset = provider default)
+# export ARS_CROSS_MODEL_REASONING_EFFORT="medium"
+
+# Step 3: Start Copilot CLI normally — cross-verification activates automatically
+copilot
 ```
 
 ### 啟用後的差異
 
 | 功能 | 未啟用跨模型 | 啟用跨模型 |
 |---|---|---|
-| 完整性驗證 | 單模型 100% 檢查 | + 30% 樣本由第二模型獨立驗證 |
+| 完整性驗證 | 單模型 100% 檢查 | + 第二模型風險分層驗證：高影響引用 100%（最終關卡另加新增／變更主張引用 100%）+ 其餘抽樣 |
 | 魔鬼代言人 | 單模型 DA | + 跨模型產生獨立 critique，新發現自動加入 |
 | 同儕審查 | 5 位審稿人（同模型） | 同樣 5 位審稿人 + 跨模型 DA critique / calibration 支援 |
+| 不可逆檢查點 | 單模型決策 | + 設計凍結與最終編輯決定各加一次盲判跨模型決策；分歧上報，絕不平均 |
 
 ### 費用
 
-完整 pipeline 會增加約 $0.60-1.10 的跨模型 API 費用（GPT-5.4 Pro 定價）。詳細拆解見 [`shared/cross_model_verification.md`](../shared/cross_model_verification.md)。
+完整 pipeline 會增加約 $0.60-1.10 的跨模型 API 費用（數量級估計，以 GPT-5.4 Pro 定價量測）。現行模型陣容與詳細拆解見 [`shared/cross_model_verification.md`](../shared/cross_model_verification.md)。
 
 ### 沒有 API key？沒問題
 

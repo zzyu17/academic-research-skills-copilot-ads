@@ -157,7 +157,17 @@ def _detect_pr_base_ref() -> str | None:
     """
     env_base = os.environ.get("GITHUB_BASE_REF")
     if env_base:
-        return f"origin/{env_base}"
+        remote_ref = f"origin/{env_base}"
+        rc, _, _ = _run_git(["rev-parse", "--verify", remote_ref])
+        if rc == 0:
+            return remote_ref
+        # Local contributor clones may name the Copilot remote differently
+        # (this repository uses `copilot`) while still carrying the base as a
+        # local branch. Prefer that branch over silently skipping the guard.
+        rc, _, _ = _run_git(["rev-parse", "--verify", env_base])
+        if rc == 0:
+            return env_base
+        return remote_ref
     default_branch, _ = _resolve_default_branch()
     if default_branch:
         return f"origin/{default_branch}"

@@ -7,6 +7,8 @@ docs/superpowers/
 # not be committed.
 .context/
 .codex-rounds/
+# Session resume / hand-off checkpoints are private working-process notes.
+/checkpoints/
 
 # Python bytecode / pytest cache.
 __pycache__/

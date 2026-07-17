@@ -9,9 +9,15 @@
     {
       "name": "academic-research-skills",
       "source": "./",
-      "description": "4 skills + 25+ modes + Material Passport pipeline. Includes v3.6.7 cross-model audit gate and v3.6.8 generator-evaluator contract. Copilot CLI port.",
-      "version": "3.11.1",
-      "license": "CC-BY-NC-4.0"
+      "description": "4 skills + 27 modes + Material Passport pipeline, deterministic verification, model tiering, and cross-model handoff gates. Copilot CLI port.",
+      "version": "3.17.0",
+      "license": "CC-BY-NC-4.0",
+      "skills": [
+        "./academic-paper",
+        "./academic-paper-reviewer",
+        "./academic-pipeline",
+        "./deep-research"
+      ]
     }
   ]
 }

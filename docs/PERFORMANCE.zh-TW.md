@@ -1,8 +1,8 @@
 # ARS 效能說明
 
-> **下方模型名稱僅供參考。** 推薦的模型名稱（Claude Opus 4.7 等）針對 Claude Code 參考版本。在 Copilot CLI 上，token 消耗量與平台無關，但模型可用性取決於您的 provider 設定（`COPILOT_PROVIDER_*` 環境變數或 Copilot 訂閱）。
+> **下方模型名稱僅供參考。** 參考版本建議使用其目前的 frontier model。在 Copilot CLI 上，token 消耗量與平台無關，但模型可用性取決於您的 provider 設定（`COPILOT_PROVIDER_*` 環境變數或 Copilot 訂閱）。
 
-> **建議模型：Claude Opus 4.7**，搭配 **Max plan**（或同等配置）。Opus 4.7 採用 adaptive thinking，不需要手動指定 thinking budget。
+> **建議模型：Copilot CLI provider 可用的最強 reasoning model**，並搭配同等的高 context plan 或設定。
 >
 > 完整學術 pipeline（10 階段）會消耗**大量 token** — 單次完整執行可能超過 200K 輸入 + 100K 輸出 token，視論文長度和修訂輪數而定。請依預算斟酌使用。
 >
@@ -10,7 +10,7 @@
 
 ## 各模式 Token 消耗估算
 
-| Skill / 模式 | 輸入 Token | 輸出 Token | 估算費用（Opus 4.7）|
+| Skill / 模式 | 輸入 Token | 輸出 Token | 估算費用（參考 frontier model）|
 |---|---|---|---|
 | `deep-research` socratic | ~30K | ~15K | ~$0.60 |
 | `deep-research` full | ~60K | ~30K | ~$1.20 |
@@ -22,7 +22,7 @@
 | **完整 pipeline（10 階段）** | **~200K+** | **~100K+** | **~$4-6** |
 | + 跨模型驗證 | +~10K（外部）| +~5K（外部）| +~$0.60-1.10 |
 
-*以 ~15,000 字論文、~60 篇引用為基準估算。實際消耗隨論文長度、修訂輪數、對話深度而異。費用以 Anthropic API 2026 年 4 月定價計算。*
+*以 ~15,000 字論文、~60 篇引用為基準估算。實際消耗隨論文長度、修訂輪數、對話深度而異。費用以 Opus 4.x 實測、Anthropic API 2026 年 4 月定價計算；換用其他 provider 或更新模型時請當成數量級參考，不是精確報價。*
 
 ## 平台特定設定
 
@@ -47,9 +47,9 @@
 - Sonnet session 取得 Sonnet agent，跟主 session cost / latency 對齊。
 - Agent 永遠不會默默掉到 Haiku — `inherit` 走的是主 session 模型，主 session 本身又被「ARS 全程不用 Haiku」政策守住。
 
-意涵：**plugin agent 的 token 成本完全跟著上表各模式估算走，沒有額外加減**。dispatched agent 跟主 session 同一個模型，主 session 已經付的成本沒有再多一層 plugin agent 收費。如果 pipeline 中途換模型（例如 revision pass 改用 Sonnet 省成本），下一輪 agent 派工自動跟上。
+Copilot adapter 預設讓所有 ARS 角色使用 session model。Opt-in 的 `ARS_MODEL_TIERING` 會在派工時加上模型分層：`economy` 讓 execution 角色降一階（樓地板為 Opus 級），`quality-boost` 則在完整性與最終審查檢查點把 judgment 角色升到 frontier 級。無效值只警告一次，其餘行為保持預設。見 [`shared/model_tiering.md`](../shared/model_tiering.md)。
 
-其他 ARS agent（`bibliography_agent`、`literature_strategist_agent` 等）在 v3.7.0 不暴露為 plugin agent；它們仍是 in-skill prompt template，由主 session 內聯執行，沒有獨立的模型路由層。更廣的 plugin agent 覆蓋留到後續版本。
+三個頂層鏡像 agent 另帶最小權限 tools 白名單（`Read`、`Write`、`Edit`、`Grep`、`Glob`；無 shell 或網路抓取）。Copilot runtime write-scope guard 為所有受保護 agent 補上執行期限制。
 
 ## 長時間 session 管理
 
@@ -154,3 +154,7 @@ Material Passport 帶非空 `literature_corpus[]` 時，Phase 1 讀取量隨 cor
 | ~500 筆（大型文獻庫）| +~25-40K input + ~8-12K output | passport emit 前考慮先精簡 corpus |
 
 Step 2 search-fills-gap 在 `uncovered_topics` 小（case A）時會降低 external-DB 成本，可部分抵銷 Step 1。淨效應實測待真實 SR run instrumentation 後校準；目前不下總體數字結論。Parse 失敗約一個短 turn 成本（parse + emit `[CORPUS PARSE FAILURE]` + fallback）。
+
+## v3.6.7 Step 6 跨模型 audit wrapper（onboarding）
+
+v3.6.7 Step 6 提供 `scripts/run_codex_audit.sh` 與 `scripts/parse_audit_verdict.py`，在 stage transition 前透過獨立 Codex CLI process audit `synthesis_agent`、`research_architect_agent`（survey-designer mode）及 `report_compiler_agent`（abstract-only mode）的交付物。Wrapper 會預檢 `codex`、`git`、`jq`、`python3`、Bash 4+ 與驗證資訊；缺少依賴時在寫入 artifact 前 fail closed。完整安裝、環境、threat-model、exit-code 與成本契約請參閱英文版同名章節及 [spec §4](design/2026-04-30-ars-v3.6.7-step-6-orchestrator-hooks-spec.md)。

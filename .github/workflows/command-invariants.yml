@@ -1,0 +1,44 @@
+name: Command Invariants
+
+# Copilot command authority lives in extension.mjs, not commands/*.md.
+# The Node suite pins the exact 16-command inventory and runtime bridge;
+# the Python lints pin command-specific prompt contracts and release lockstep.
+
+on:
+  push:
+    paths:
+      - 'extension.mjs'
+      - 'tests/copilot_runtime.test.mjs'
+      - 'skills/ars-bootstrap/SKILL.md'
+      - 'scripts/copilot_runtime.mjs'
+      - 'scripts/check_v3_6_8_mark_read_commands.py'
+      - 'scripts/check_version_consistency.py'
+      - '.claude-plugin/*.json'
+      - 'package.json'
+      - 'CHANGELOG.md'
+      - '.github/workflows/command-invariants.yml'
+  pull_request:
+
+concurrency:
+  group: command-invariants-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  command-invariants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate Copilot command inventory and runtime bridge
+        run: node --test tests/copilot_runtime.test.mjs
+      - name: Validate mark-read command contracts
+        run: python3 scripts/check_v3_6_8_mark_read_commands.py
+      - name: Validate version lockstep
+        env:
+          PYTHONPATH: scripts
+        run: python3 scripts/check_version_consistency.py

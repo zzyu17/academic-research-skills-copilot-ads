@@ -15,7 +15,7 @@ name: Test Count Monotonic
 
 on:
   pull_request:
-    branches: [main]
+    branches: [copilot-main]
 
 concurrency:
   group: test-count-${{ github.event.pull_request.number }}-${{ github.event_name }}
@@ -43,8 +43,8 @@ jobs:
 
       - name: Install deps (PR head)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt pytest
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements-dev.txt pytest
 
       - name: Count tests on PR head
         id: head
@@ -95,9 +95,9 @@ jobs:
         run: |
           # Reuse pip cache; requirements may differ
           if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt pytest --quiet
+            python3 -m pip install -r requirements-dev.txt pytest --quiet
           else
-            pip install pytest --quiet
+            python3 -m pip install pytest --quiet
           fi
 
       - name: Count tests on base

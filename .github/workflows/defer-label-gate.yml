@@ -15,7 +15,7 @@ name: Defer Label Gate
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*-copilot'
 
 permissions:
   contents: read
@@ -38,7 +38,7 @@ jobs:
           set -euo pipefail
 
           # Normalize tag -> defer label. v3.9.4.1 -> defer:v3.9.4.1
-          LABEL="defer:${NEW_TAG}"
+          LABEL="defer:${NEW_TAG%-copilot}"
           echo "Checking label: $LABEL"
 
           # Override

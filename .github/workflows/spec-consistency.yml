@@ -41,7 +41,7 @@ jobs:
         # pip install. Previously each pytest step did its own `pip install
         # pytest [pyyaml] [jsonschema]`; consolidating saves ~12 redundant
         # installs per workflow run.
-        run: pip install -r requirements-dev.txt pytest
+        run: python3 -m pip install -r requirements-dev.txt pytest
 
       - name: Run spec consistency check
         run: python3 scripts/check_spec_consistency.py
@@ -87,6 +87,15 @@ jobs:
           PYTHONPATH: scripts
         run: python3 scripts/check_data_access_level.py
 
+      - name: Check instruction-vs-data boundary (#272 guidance layer)
+        # Drift guard for the retrieved-content instruction/data principle:
+        # authoritative canonical block in ground_truth_isolation_pattern.md +
+        # verbatim-inlined copies in the two hot-spot retrieval agents + backpoints.
+        # The mutation test (272-instruction-data-boundary-mutation) runs via the
+        # pytest manifest above. Commit-time documentation check only — not a
+        # runtime gate (see docs/design/2026-06-07-272-...-design.md § 3/§ 5).
+        run: python3 scripts/check_instruction_data_boundary.py
+
       - name: Check task_type declarations
         env:
           PYTHONPATH: scripts
@@ -107,10 +116,44 @@ jobs:
           PYTHONPATH: .
         run: python3 -m unittest scripts.test_check_collaboration_depth_rubric -v
 
-      - name: Check version consistency (CLAUDE.md / SKILL.md / CHANGELOG)
+      - name: Check rubric weight consistency (quality_rubrics / framework / SKILL rule 14)
+        run: python3 scripts/check_rubric_weight_consistency.py
+
+      - name: Check citation-verification intake wiring (#392)
+        run: python3 scripts/check_392_citation_verification_intake.py
+
+      - name: Check agents/ mirror sync (#413)
+        # The pytest companion `test_check_agents_mirror_sync.py` runs via the
+        # unified manifest.
+        run: python3 scripts/check_agents_mirror_sync.py
+
+      - name: Check tools-allowlist content lock (#524)
+        # Pins the #514 allowlist VALUE (mirror-sync pins only the pair) +
+        # the Bucket-A-must-not-advertise-Bash reconciliation. The pytest
+        # companion `test_check_tools_allowlist.py` runs via the unified
+        # manifest.
+        run: python3 scripts/check_tools_allowlist.py
+
+      - name: Check revision-patch discipline (#390 Slice B)
+        # The pytest companion `test_check_390_revision_patch_discipline.py`
+        # runs via the unified manifest.
+        run: python3 scripts/check_390_revision_patch_discipline.py
+
+      - name: Check version consistency (ars-bootstrap / SKILL.md / CHANGELOG)
         env:
           PYTHONPATH: scripts
         run: python3 scripts/check_version_consistency.py
+
+      - name: Check SETUP cross-model example parity (#491)
+        # The pytest companion `test_check_setup_cross_model_parity.py`
+        # runs via the unified manifest (and also under pytest.yml's
+        # scripts/ glob — that 2x overlap is the accepted manifest pattern).
+        run: python3 scripts/check_setup_cross_model_parity.py
+
+      - name: Check model-tiering classification (#517)
+        # The pytest companion `test_check_model_tiering.py` runs via the
+        # unified manifest.
+        run: python3 scripts/check_model_tiering.py
 
       - name: Run version consistency unit tests
         env:
@@ -157,8 +200,30 @@ jobs:
       - name: Validate literature_corpus schemas and examples
         run: python3 scripts/check_literature_corpus_schema.py
 
+      - name: Validate degradation registry (#511 Part A)
+        # Pins shared/contracts/degradation_registry.json to the repo state it
+        # cites: every authority content-anchor must appear verbatim in its
+        # file, every pinned test/lint/schema must exist (path::function
+        # resolved for .py). The registry indexes, it never re-authors —
+        # semantics stay in each row's authority file.
+        run: python3 scripts/check_degradation_registry.py
+
       - name: Validate corpus consumer protocol (v3.6.5+)
         run: python3 scripts/check_corpus_consumer_protocol.py
+
+      - name: Validate experiment_provenance[] example shape (#260)
+        # Standalone shape gate (mirrors the non-CI check_repro_lock.py family):
+        # asserts the shipped example's experiment_provenance[] entries are
+        # well-formed against experiment_provenance_entry.schema.json so the
+        # example cannot rot. Cross-array EP/EA invariants + the repro_lock drift
+        # guard are covered by scripts.test_experiment_provenance +
+        # scripts.test_repro_lock_validation_drift (run below + via pytest).
+        run: python3 scripts/check_experiment_provenance.py examples/passport_with_experiment_provenance.yaml
+
+      - name: Run #260 experiment-provenance + repro_lock drift tests
+        env:
+          PYTHONPATH: .
+        run: python3 -m unittest scripts.test_experiment_provenance scripts.test_repro_lock_validation_drift -v
 
       - name: Validate domain evidence profile documentation surface (#259)
         run: python3 scripts/check_domain_evidence_profile.py
@@ -230,7 +295,7 @@ jobs:
         # the unified manifest (#156).
         env:
           PYTHONPATH: .
-        run: python scripts/check_v3_9_0_triangulation.py
+        run: python3 scripts/check_v3_9_0_triangulation.py
 
       - name: Firm-rules sync + ID-collision lint (v3.10 PR-A, #127)
         # Pins the canonical R-L3-2-* (contamination) / R-CIM-* (claim-manifest)
@@ -242,7 +307,19 @@ jobs:
         # companion `test_check_firm_rules_sync.py` runs via the unified manifest.
         env:
           PYTHONPATH: .
-        run: python scripts/check_firm_rules_sync.py
+        run: python3 scripts/check_firm_rules_sync.py
+
+      - name: Judge-prompt-version drift guard (#361)
+        # Recomputes the SHA-256 of the canonical judge-prompt section (between
+        # the JUDGE-PROMPT-CANONICAL markers in claim_ref_alignment_audit_agent.md)
+        # and fails if it drifts from JUDGE_PROMPT_SHA256 in _claim_audit_constants.py.
+        # Forces a prompt edit to re-pin the hash + bump JUDGE_PROMPT_VERSION, so a
+        # judge-prompt change cannot silently leave stale judge-cache entries valid.
+        # The pytest companion `test_check_judge_prompt_version.py` runs via the
+        # unified manifest.
+        env:
+          PYTHONPATH: .
+        run: python3 scripts/check_judge_prompt_version.py
 
       - name: v3.10 policy-layer lint (#127 PR-B)
         # Verifies the v3.10 terminal-policy-layer contract: venue_type /
@@ -257,7 +334,59 @@ jobs:
         # unified manifest.
         env:
           PYTHONPATH: .
-        run: python scripts/check_v3_10_policy.py
+        run: python3 scripts/check_v3_10_policy.py
+
+      - name: "#394 slice-4 submission-policy lint"
+        # Verifies the submission-package terminality contract: the
+        # terminal_policies submission_package enum {advisory, strict} with no
+        # JSON-Schema default, the orchestrator Submission-Package Terminal
+        # Gate section's load-bearing literals (fix-loop bound, VERIFICATION-
+        # INCOMPLETE, --check-freshness, sole-reader + gate-on-tokens
+        # sentences), the formatter Submission Package Advisories section,
+        # the AST single-homed guard (the verifier never READS
+        # terminal_policies — docstring mentions stay free, gate-1 P2), and
+        # the report schema's closed policy_slug enum. The pytest companion
+        # `test_check_394_submission_policy.py` runs via the unified manifest.
+        env:
+          PYTHONPATH: .
+        run: python3 scripts/check_394_submission_policy.py
+
+      - name: "#439 format_profile contract lint"
+        # Guards the scholar-declared layout profile feature (8 invariants):
+        # valid standalone Draft 2020-12 schema + locked root (Invariant 11), the
+        # line_spacing.fixed_pt conditional (required iff mode==fixed_pt, AND mode
+        # itself required), NO venue_profile provenance machinery leaked in
+        # (declared-only downgraded to docs, design §3), cut fields stay cut
+        # (design §4), the synthetic example validates, the formatter + intake
+        # prose wiring carry their load-bearing literals (byte-equivalence guard,
+        # fail-closed, venue precedence; write-nothing-when-declined + structural
+        # PCR row), and the POSITIONING ship-contract-not-content boundary (§6).
+        # The pytest companion `test_check_439_format_profile.py` runs via the
+        # unified manifest.
+        env:
+          PYTHONPATH: .
+        run: python3 scripts/check_439_format_profile.py
+
+      - name: Run #527 cross-model handoff contract lint
+        # Pins the canonical [CROSS-MODEL-HANDOFF v1] envelope + dispatcher
+        # consumer contract across shared/cross_model_verification.md, the
+        # three checkpoint owners, and the Mode-A orchestrator. Normative
+        # grammar: scripts/cross_model_handoff.py; owner->dispatcher->owner
+        # fixtures + this lint's mutation tests run via the unified
+        # manifest (#156).
+        run: python3 scripts/check_cross_model_handoff_contract.py
+
+      - name: Run #528 pipeline boundary-semantics defrift lock
+        # Pins the four Mode-A-replay resolutions (#529 items 1-2 + #528
+        # items 3-4) across academic-pipeline SKILL.md / orchestrator /
+        # state machine / process_summary_protocol: Methodology Blueprint
+        # in the Stage 1->2 handoff, Stage 3' Minor never triggers
+        # coaching, the Stage 5 MANDATORY boundary is the entry gate
+        # (completion checkpoint FULL — never SLIM), and the Stage 6
+        # terminal-acknowledgement semantics. The pytest companion
+        # `test_check_pipeline_boundary_semantics.py` runs via the
+        # unified manifest (#156).
+        run: python3 scripts/check_pipeline_boundary_semantics.py
 
       - name: Run v3.9.2 Phase Boundary coverage lint (#133)
         # Enforces 22 Bucket A agents have ## Phase Boundary (v3.9.2)
@@ -272,6 +401,40 @@ jobs:
           PYTHONPATH: .
         run: python3 scripts/check_v3_9_2_phase_boundary.py
 
+      - name: Run #215 field-norm severity coverage lint
+        # Asserts the three #215 reviewer surfaces (domain_reviewer Step 5,
+        # devils_advocate dimension 9 + CRITICAL fields, calibration Phase 3.5)
+        # carry their scoped field-norm-severity blocks. Block-scoped keyword
+        # checks (not file-wide) so a stray keyword cannot mask a missing rule.
+        # The pytest companion test_check_215_field_norm.py (mutation tests) runs
+        # via the unified manifest (#156). Issue #215 (Kim et al. 2026 W1/§F.3.4).
+        env:
+          PYTHONPATH: .
+        run: python3 scripts/check_215_field_norm.py
+
+      - name: Run #216 surface-form parity gold-set integrity lint
+        # Validates the mixed-provenance §F.3.6 gold set: structural completeness,
+        # provenance honesty (paper_verbatim quotes the paper; counterfactual_rewrite /
+        # maintainer_boundary are labelled as maintainer-authored, never paper-verbatim),
+        # pair invariants (paired items hold claim + verdict constant, differ in framing),
+        # no rotting pdftotext line anchors, and gold<->manifest agreement. NOT an FNR/FPR
+        # detector — there is no deterministic predictor for the surface-form bias.
+        # Companion test_check_surface_form_parity.py (mutation + serializer-strip) runs
+        # via the unified manifest (#156). Issue #216 (Kim et al. 2026 §F.3.6).
+        env:
+          PYTHONPATH: .
+        run: python3 -m scripts.check_surface_form_parity
+
+      - name: Run #216 surface-form parity coverage lint
+        # Asserts the Devil's Advocate agent carries the Surface-Form Parity self-check
+        # block at verdict time, with every load-bearing clause inside its marker block
+        # (block-scoped + fence-aware), so a stray keyword cannot mask a missing rule.
+        # Companion test_check_216_surface_form.py (6-class mutation suite) runs via the
+        # unified manifest (#156). Issue #216 (Kim et al. 2026 §F.3.6).
+        env:
+          PYTHONPATH: .
+        run: python3 scripts/check_216_surface_form.py
+
       - name: Run v3.10 #134 write-scope three-way name cross-check lint
         # THE FAIL-OPEN GUARD for the Slice 1 write-scope hook. Asserts the 23 Bucket A
         # agent names match across the classification roster, the scope manifest keys,
@@ -284,26 +447,12 @@ jobs:
           PYTHONPATH: .
         run: python3 scripts/check_v3_10_134_write_scope.py
 
-      - name: Validate ARS plugin hooks.json wires the write-scope guard
-        # Pins hooks/hooks.json to (a) be valid JSON, (b) carry a PreToolUse entry whose
-        # matcher covers the structured write tools + Bash, and (c) invoke the guard
-        # script via ${CLAUDE_PLUGIN_ROOT}. Catches an accidental hook-config regression
-        # that would silently disable the guard.
-        run: |
-          python3 - <<'PY'
-          import json
-          h = json.load(open("hooks/hooks.json"))
-          pre = h.get("hooks", {}).get("PreToolUse", [])
-          assert pre, "hooks.json has no PreToolUse entry"
-          entry = pre[0]
-          matcher = entry.get("matcher", "")
-          for tool in ("Write", "Edit", "MultiEdit", "Bash"):
-              assert tool in matcher, f"PreToolUse matcher missing {tool!r}: {matcher!r}"
-          cmds = " ".join(hk.get("command", "") for hk in entry.get("hooks", []))
-          assert "ars_write_scope_guard.py" in cmds, "PreToolUse does not invoke the guard script"
-          assert "${CLAUDE_PLUGIN_ROOT}" in cmds, "guard command must use ${CLAUDE_PLUGIN_ROOT}"
-          print("hooks.json PreToolUse write-scope guard wiring OK")
-          PY
+      - name: Validate Copilot extension command and write-scope wiring
+        # The Copilot adapter has no hooks/hooks.json. Its executable contract is
+        # extension.mjs -> scripts/copilot_runtime.mjs -> ars_write_scope_guard.py.
+        # The Node suite pins all 16 commands, the real SDK cwd/tool fields,
+        # Python discovery, model tiering, and silent fail-open guard behavior.
+        run: node --test tests/copilot_runtime.test.mjs
 
       - name: Run v3.9.4 temporal verification lint (#135)
         # Verifies check_v3_9_4_temporal_verification.py against all bundled
@@ -437,4 +586,3 @@ jobs:
         env:
           PYTHONPATH: .
         run: python3 -m scripts.check_268_nested_commitment_ledger
-

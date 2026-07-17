@@ -76,6 +76,11 @@ def is_exempt(subject: str) -> bool:
     AND no-prefix subjects — is REQUIRED. Broadening this set reopens the
     original "merged but undocumented" failure mode under different prefixes.
     """
+    # Sibling-port maintenance commits use the established `Copilot:` prefix
+    # and are summarized by the distribution release entry rather than an
+    # upstream issue/PR number. Treat that namespace like docs(release).
+    if subject.startswith("Copilot:"):
+        return True
     m = _PREFIX_RE.match(subject)
     if not m:
         return False  # no-prefix subjects are required
@@ -154,7 +159,7 @@ def extract_coverage_text(changelog_text: str, previous_tag: str) -> str | None:
     return changelog_text[: m.start()]
 
 
-_TAG_GRAMMAR_RE = re.compile(r"^v\d+(?:\.\d+){1,3}$")
+_TAG_GRAMMAR_RE = re.compile(r"^v\d+(?:\.\d+){1,3}(?:-copilot)?$")
 
 
 def _git_out(repo: Path, *args: str) -> str | None:
@@ -173,7 +178,11 @@ def previous_release_tag(repo: Path) -> str | None:
     """Most recent release tag reachable from HEAD (pre-tag mode: HEAD has no
     new tag, so this IS the previous release). Restricted to the v-tag grammar;
     non-v / nonstandard tags are ignored. None when no matching tag exists."""
-    out = _git_out(repo, "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*")
+    # Prefer this distribution's release namespace. The plain-tag fallback
+    # keeps the portable checker and its upstream fixtures reusable.
+    out = _git_out(repo, "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*-copilot")
+    if out is None:
+        out = _git_out(repo, "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*")
     if out is None or not _TAG_GRAMMAR_RE.match(out):
         return None
     return out
@@ -197,7 +206,7 @@ def check(repo: Path, *, first_release: bool = False, merges_ref: str = "HEAD") 
 
     ``merges_ref`` bounds the audited merge range (`<prev_tag>..<merges_ref>`).
     Default HEAD suits the manual pre-tag run; the release-prep-PR CI job
-    passes ``origin/main`` so only merges already landed on main are audited
+    passes ``origin/copilot-main`` so only merges already landed on the distribution branch are audited
     (the prep branch's own in-flight commits are not merges yet), while the
     coverage window still reads the PR's CHANGELOG state."""
     errors: list[str] = []

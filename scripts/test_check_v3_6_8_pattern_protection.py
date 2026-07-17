@@ -477,7 +477,7 @@ def test_anti_self_baseline_guard_rejects_manifest_mutation_in_pr(monkeypatch) -
     resolution may fail; this test injects the env var so the guard's
     real reject path is exercised regardless of trigger event.
     """
-    monkeypatch.setenv("GITHUB_BASE_REF", "main")
+    monkeypatch.setenv("GITHUB_BASE_REF", "copilot-main")
     with _Snapshot(V3_6_7_MANIFEST):
         text = V3_6_7_MANIFEST.read_text(encoding="utf-8")
         # Mutate `rationale_doc` so the byte-equivalence check fires while
@@ -522,7 +522,7 @@ def test_anti_self_baseline_guard_history_scan_called(monkeypatch) -> None:
     pass" branch is bypassed (matters on `push` event CI where the env var
     is normally absent).
     """
-    monkeypatch.setenv("GITHUB_BASE_REF", "main")
+    monkeypatch.setenv("GITHUB_BASE_REF", "copilot-main")
     from scripts import check_v3_6_8_pattern_protection as mod
 
     real_run_git = mod._run_git

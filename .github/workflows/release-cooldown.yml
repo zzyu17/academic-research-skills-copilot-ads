@@ -13,7 +13,7 @@ name: Release Cooldown
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*-copilot'
 
 concurrency:
   group: release-cooldown-${{ github.ref }}-${{ github.event_name }}
@@ -40,7 +40,7 @@ jobs:
           # Find previous release tag (v*, by creator date, exclude current).
           # Filtering to v* avoids non-release tags (e.g., test, internal markers)
           # being picked as PREV_TAG and bypassing the cooldown classification.
-          PREV_TAG=$(git tag -l 'v*' --sort=-creatordate | grep -v "^${NEW_TAG}$" | head -1 || true)
+          PREV_TAG=$(git tag -l 'v*-copilot' --sort=-creatordate | grep -v "^${NEW_TAG}$" | head -1 || true)
           if [ -z "$PREV_TAG" ]; then
             echo "No previous release tag — first release, skip cooldown."
             exit 0
@@ -57,7 +57,7 @@ jobs:
           PREV_TAG_SUBJECT=$(git for-each-ref "refs/tags/${PREV_TAG}" --format='%(subject)')
           HOTFIX_REGEX='(hot-?fix|post-ship|^fix\(v)'
           IS_HOTFIX="false"
-          if [[ "$PREV_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[ "$PREV_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+-copilot$ ]]; then
             IS_HOTFIX="true"
           fi
           if echo "$PREV_COMMIT_SUBJECT" | grep -qiE "$HOTFIX_REGEX"; then

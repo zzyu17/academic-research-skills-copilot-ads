@@ -92,6 +92,9 @@ class IsExemptTest(unittest.TestCase):
         # changelog being written — it cannot cite itself (§0.2).
         self.assertTrue(is_exempt("docs(release): align all doc surfaces for v3.14.0 (#481)"))
 
+    def test_exempt_copilot_port_maintenance_namespace(self):
+        self.assertTrue(is_exempt("Copilot: port v3.17.0 - phase 4"))
+
     def test_i18n_docs_required(self):
         # Translation changes are user-facing docs like any other (codex P2):
         # exempting docs(i18n) would let them slip through undocumented.

@@ -64,13 +64,13 @@ Three reference Python adapters ship with v3.6.4 at `scripts/adapters/`:
 
 ```bash
 # 1. Install adapter dependencies (PyYAML + jsonschema, already in requirements-dev.txt)
-pip install -r requirements-dev.txt
+python3 -m pip install -r requirements-dev.txt
 
 # 2. Run a reference adapter (pick one that matches your corpus source).
 #    Both --passport and --rejection-log are required.
-python scripts/adapters/folder_scan.py --input /path/to/pdfs               --passport passport.yaml --rejection-log rejection_log.yaml
-python scripts/adapters/zotero.py      --input my-zotero-export.json       --passport passport.yaml --rejection-log rejection_log.yaml
-python scripts/adapters/obsidian.py    --input ~/Obsidian/Lit\ Notes       --passport passport.yaml --rejection-log rejection_log.yaml
+python3 scripts/adapters/folder_scan.py --input /path/to/pdfs               --passport passport.yaml --rejection-log rejection_log.yaml
+python3 scripts/adapters/zotero.py      --input my-zotero-export.json       --passport passport.yaml --rejection-log rejection_log.yaml
+python3 scripts/adapters/obsidian.py    --input ~/Obsidian/Lit\ Notes       --passport passport.yaml --rejection-log rejection_log.yaml
 
 # 3. Pass the resulting passport.yaml into your ARS session
 #    (concrete invocation depends on which skill you're running — see scripts/adapters/README.md)
@@ -90,39 +90,46 @@ ARS exposes a few opt-in flags. All default to OFF; setting them changes behavio
 | `ARS_SOCRATIC_READING_PROBE=1` | v3.5.1 | Activate the Socratic reading-check probe layer in `socratic_mentor_agent`. Goal-oriented intent only; fires at most once per session when user has cited a specific paper; decline logged without penalty. | `deep-research/agents/socratic_mentor_agent.md` |
 | `ARS_PASSPORT_RESET=1` | v3.6.3 | Promote every FULL checkpoint to a context-reset boundary. Required to *emit* boundary entries; **not** required to invoke `resume_from_passport=<hash>` in a fresh session. With the flag ON in `systematic-review` mode, reset is mandatory at every FULL checkpoint. | `academic-pipeline/references/passport_as_reset_boundary.md` |
 | `ARS_CROSS_MODEL_SAMPLE_INTERVAL` | v3.5.0 | Sampling interval for cross-model integrity checks (advisory) | `shared/cross_model_verification.md` |
+| `ARS_VERIFICATION_CACHE_PATH` | v3.11 | Override the citation-verification cache location. The cache remains enabled; this only relocates it. | `scripts/verification_cache.py` |
+| `ARS_MODEL_TIERING` | v3.16.0 | Opt-in dispatch tiering: `economy` steps execution roles down one tier (floor: Opus-class); `quality-boost` raises judgment roles at integrity and final-review checkpoints to the frontier tier. Unset keeps the session model; invalid values warn once and behave as unset. | `shared/model_tiering.md` |
 
 ---
 
-## Cross-model verification (optional, Claude Code reference)
+## Cross-model verification (optional)
 
-ARS works with Claude Opus 4.7 alone. For higher confidence, you can optionally enable a second AI model to independently verify integrity checks and challenge the devil's advocate.
+ARS works with the inherited Copilot CLI session model alone. For higher confidence, you can optionally enable a second AI model to independently verify integrity checks and challenge the devil's advocate.
 
 ### Quick setup
 
 ```bash
 # Step 1: Set your API key (choose one or both)
-export OPENAI_API_KEY="sk-your-key-here"        # For GPT-5.4 Pro
+export OPENAI_API_KEY="sk-your-key-here"        # For GPT-5.5 / GPT-5.5 Pro
 export GOOGLE_AI_API_KEY="AIza-your-key-here"    # For Gemini 3.1 Pro
 
 # Step 2: Choose your cross-verification model
-export ARS_CROSS_MODEL="gpt-5.4-pro"            # Best reasoning
+export ARS_CROSS_MODEL="gpt-5.5"                # Recommended pair (gpt-5.5-pro = strongest reasoning, ~6x cost)
 # or: export ARS_CROSS_MODEL="gemini-3.1-pro-preview"  # Strong at factual verification
+# or: export ARS_CROSS_MODEL="gpt-5.6-sol"      # Frontier, provisional pending ARS validation
 
-# Step 3: Run Claude Code as normal — cross-verification activates automatically
-claude
+# Optional: reasoning effort for OpenAI verifier calls (unset = provider default)
+# export ARS_CROSS_MODEL_REASONING_EFFORT="medium"
+
+# Step 3: Start Copilot CLI normally — cross-verification activates automatically
+copilot
 ```
 
 ### What changes when enabled
 
 | Feature | Without cross-model | With cross-model |
 |---|---|---|
-| Integrity verification | Single-model 100% check | + 30% sample independently verified by 2nd model |
+| Integrity verification | Single-model 100% check | + risk-stratified verification by 2nd model: 100% of high-impact references (final gate also checks 100% of new/changed-claim references) + a sampled remainder |
 | Devil's Advocate | Single-model DA | + Cross-model generates independent critique, novel findings added |
 | Peer Review | 5 reviewers (same model) | Same 5 reviewers + cross-model DA critique/calibration support |
+| Irreversible checkpoints | Single-model decision | + blind cross-model decision at design freeze and final editorial decision; divergence is escalated, never averaged |
 
 ### Cost
 
-Full pipeline adds ~$0.60-1.10 in cross-model API costs (GPT-5.4 Pro pricing). See [`shared/cross_model_verification.md`](../shared/cross_model_verification.md) for the detailed breakdown.
+Full pipeline adds roughly $0.60-1.10 in cross-model API costs (an order-of-magnitude estimate measured at GPT-5.4 Pro pricing). See [`shared/cross_model_verification.md`](../shared/cross_model_verification.md) for the current model lineup and detailed breakdown.
 
 ### No API key? No problem
 

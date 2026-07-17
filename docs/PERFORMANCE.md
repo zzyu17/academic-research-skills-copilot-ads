@@ -1,8 +1,8 @@
 # ARS Performance Notes
 
-> **Model references below are illustrative.** The recommended model names (Claude Opus 4.7, etc.) refer to the Claude Code reference distribution. On Copilot CLI, token consumption is platform-agnostic but model availability depends on your provider configuration (`COPILOT_PROVIDER_*` env vars or Copilot subscription).
+> **Model references below are illustrative.** The reference distribution recommends its current frontier model. On Copilot CLI, token consumption is platform-agnostic but model availability depends on your provider configuration (`COPILOT_PROVIDER_*` env vars or Copilot subscription).
 
-> **Recommended model: Claude Opus 4.7** with **Max plan** (or equivalent configuration). Opus 4.7 uses adaptive thinking; you no longer set a fixed thinking budget.
+> **Recommended model: the strongest reasoning model available through your Copilot CLI provider**, with an equivalent high-context plan or configuration.
 >
 > The full academic pipeline (10 stages) consumes a **large amount of tokens** — a single end-to-end run can exceed 200K input + 100K output tokens depending on paper length and revision rounds. Budget accordingly.
 >
@@ -10,7 +10,7 @@
 
 ## Estimated token usage by mode
 
-| Skill / Mode | Input Tokens | Output Tokens | Estimated Cost (Opus 4.7) |
+| Skill / Mode | Input Tokens | Output Tokens | Estimated Cost (reference frontier model) |
 |---|---|---|---|
 | `deep-research` socratic | ~30K | ~15K | ~$0.60 |
 | `deep-research` full | ~60K | ~30K | ~$1.20 |
@@ -22,7 +22,7 @@
 | **Full pipeline (10 stages)** | **~200K+** | **~100K+** | **~$4-6** |
 | + Cross-model verification | +~10K (external) | +~5K (external) | +~$0.60-1.10 |
 
-*Estimates based on a ~15,000-word paper with ~60 references. Actual usage varies with paper length, revision rounds, and dialogue depth. Costs at Anthropic API pricing as of April 2026.*
+*Estimates based on a ~15,000-word paper with ~60 references. Actual usage varies with paper length, revision rounds, and dialogue depth. Costs were measured on Opus 4.x at Anthropic API pricing as of April 2026; treat them as order-of-magnitude anchors for other providers and newer models, not exact quotes.*
 
 ## Platform-specific settings
 
@@ -47,9 +47,9 @@ When ARS is installed as a Claude Code plugin (`/plugin install academic-researc
 - A Sonnet session gets Sonnet agents, matching the cost/latency profile of the parent run.
 - The agents never silently fall back to Haiku — `inherit` resolves through the parent session's model, which is itself gated by the project policy of "no Haiku for ARS runs."
 
-This means **plugin-agent token costs track the per-mode estimates above unchanged**; there is no separate plugin agent surcharge or discount, because dispatched agents inherit the same model the parent run already pays for. If you change the main session model mid-pipeline (e.g., downshift to Sonnet for a long revision pass), the next agent dispatch picks up the new floor automatically.
+The Copilot adapter dispatches all ARS roles with the session model by default. The opt-in `ARS_MODEL_TIERING` switch adds dispatch-time routing: `economy` steps execution roles down one tier (floor: Opus-class), while `quality-boost` raises judgment roles at integrity and final-review checkpoints to the frontier tier. Invalid values warn once and otherwise preserve default behavior. See [`shared/model_tiering.md`](../shared/model_tiering.md).
 
-Other ARS agents (`bibliography_agent`, `literature_strategist_agent`, etc.) are not plugin-exposed in v3.7.0; they remain in-skill prompt templates that the main session executes inline, with no separate model routing layer. Wider plugin-agent coverage is deferred to a future release.
+The three top-level mirrored agents also carry a least-privilege tools allowlist (`Read`, `Write`, `Edit`, `Grep`, `Glob`; no shell or network fetch). Copilot's runtime write-scope guard complements that dispatch-time restriction for all protected agents.
 
 ## Long-running session management
 

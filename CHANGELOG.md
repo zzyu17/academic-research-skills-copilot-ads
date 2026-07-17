@@ -2,6 +2,29 @@
 
 All notable changes to the Copilot CLI distribution of Academic Research Skills.
 
+## [3.17.0-copilot] - 2026-07-17
+
+### Ported from upstream (v3.12.0–v3.17.0)
+
+- **Pipeline and review contracts:** pipeline boundary-semantics fixes, the canonical cross-model handoff envelope, executable panel checking, submission-policy terminality, format-profile enforcement, revision-patch discipline, and claim/reference audit hardening.
+- **Cross-model verification:** provider-agnostic endpoints, GPT-5.5 and provisional GPT-5.6 Sol examples, explicit reasoning-effort control, risk-stratified sampling, blind design-freeze and final-editorial checkpoints, and dispatcher-owned transport for write-fenced agents.
+- **Model tiering:** opt-in `ARS_MODEL_TIERING=economy|quality-boost`, a frozen 39-agent role classification, precedence rules, fail-open invalid-value handling, and Copilot runtime dispatch integration.
+- **Research integrity and provenance:** experiment provenance contracts, reading-probe provenance, degradation registry, instruction/data boundary checks, citation-verification intake wiring, field-norm calibration, surface-form parity controls, and tools-allowlist enforcement.
+- **New commands and workflows:** `/ars-3w` for structured three-way comparison and `/ars-rebuttal-audit` for rebuttal coverage auditing, bringing the Copilot extension to 16 commands and the suite to 27 modes across 39 agents.
+- **Documentation and localization:** refreshed architecture, setup, performance, contribution, positioning, cross-paper workflow, Korean README, and all localized version/count surfaces.
+
+### Copilot adaptations
+
+- Replaced the upstream `.claude/CLAUDE.md` runtime authority with `skills/ars-bootstrap/SKILL.md` and the session-start extension hook.
+- Replaced markdown files under `commands/` with 16 `CommandDefinition` entries in `extension.mjs`; command-contract lints inspect the extension source.
+- Replaced Claude `hooks/hooks.json` wiring with the Copilot `onPreToolUse` bridge and `scripts/copilot_runtime.mjs`, using the SDK's real `input.cwd`, `toolName`, and `toolArgs` fields.
+- Materialized the three top-level `agents/` mirrors as regular files for marketplace portability while retaining byte-equivalence checks.
+- Normalized release identifiers as `3.17.0` in manifests and `v3.17.0-copilot` for Copilot distribution tags.
+
+### Known platform gap
+
+- Copilot CLI's current `onPreToolUse` payload does not expose subagent identity. Plugin-infrastructure protection is enforced, but upstream Bucket-A per-agent write fencing remains fail-open until the SDK provides a trustworthy agent identifier.
+
 ## [3.11.1-copilot] — 2026-06-11
 
 ### Ported from upstream (v3.10–v3.11.1)

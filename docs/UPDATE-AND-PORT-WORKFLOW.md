@@ -291,6 +291,17 @@ port, search current and incoming checks for assumptions about `.claude/CLAUDE.m
   `extension.mjs`;
 - hook checks validate `onSessionStart` / `onPreToolUse` wiring in `extension.mjs`;
 - release-tag checks accept the `vX.Y.Z-copilot` convention.
+- push/PR workflows target `copilot-main`, and tag-triggered workflows filter
+  `v*-copilot` rather than the upstream plain-tag namespace;
+- changelog-coverage checks prefer Copilot tags and treat the established
+  `Copilot:` phase/maintenance namespace as release mechanics summarized by the
+  Copilot release entry.
+
+Subprocess tests that mock a CLI must build a hermetic `PATH` from the mock
+directory plus standard system paths (`os.defpath`). Do not inherit arbitrary
+user command shims into lifecycle tests: a safety wrapper around a fundamental
+command such as `rm` can otherwise block an unrelated mocked-CLI test and
+misreport the failure as a product regression.
 
 Until those checks are adapted in the runtime/finalization phase, record their failures as
 explicitly deferred and exclude only those named tests from earlier phase gates. Never weaken

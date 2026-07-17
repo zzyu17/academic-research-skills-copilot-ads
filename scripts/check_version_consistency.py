@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Lint: version labels stay aligned across .claude/CLAUDE.md, SKILL.md frontmatter, and CHANGELOG.md.
+"""Lint Copilot version labels across ars-bootstrap, skills, manifests, and CHANGELOG.
 
 Invariants enforced:
-  1. Every skill listed in .claude/CLAUDE.md Skills Overview table has a version
+  1. Every skill listed in ars-bootstrap's Skills Overview table has a version
      equal to its own SKILL.md metadata.version.
-  2. .claude/CLAUDE.md "**Suite version**: X.Y.Z" equals the most recent
+  2. ars-bootstrap "**Suite version**: X.Y.Z" equals the most recent
      "## [X.Y.Z]" entry in CHANGELOG.md.
   3. academic-pipeline version in the table equals the suite version (pipeline
      = orchestrator, by convention tracks the suite release).
@@ -20,6 +20,25 @@ Invariants enforced:
   7. Every version-bearing H2 heading in docs/<name>.md has a matching
      version-bearing H2 (same version) in docs/<name>.zh-TW.md and vice versa.
      Plain headings may differ — only version TAGS must stay in lockstep.
+  8. The plugin.json description's "N-agent" claim (when present) equals the
+     number of unique *_agent.md files in the tree (#414: the advertised
+     number had silently drifted from the tree). The plugin-root agents/
+     mirror dir is excluded from the count — real byte-identical copies of
+     deep-research agents since #413 (symlinks before that), pinned as pure
+     aliases by check_agents_mirror_sync.py, never a source of new agents.
+  9. The latest CHANGELOG entry's body is >= 100 characters (#487) — a bare
+     heading or one-line stub is not release notes. Only the LATEST entry is
+     gated; historical entries may be terse.
+ 10. ars-bootstrap "Last Updated" lies within ±7 days of the latest
+     CHANGELOG entry's date (#487). The CHANGELOG date is the baseline (not
+     "today") so re-running the lint later cannot flip the result.
+ 11. The newest "## vX.Y… Key Additions" heading in ars-bootstrap matches
+     the suite version (#487), compared at the heading's own precision —
+     `## v3.14 Key Additions` matches suite 3.14.0.
+
+Tag gate (#487): `--tag <ref>` additionally requires the given git tag
+(leading `v` optional) to equal the suite version — the one comparison
+nothing else performs at tag time. Wired via tag-version-match.yml.
 
 Runs from repo root by default; `--path` lets tests point at a fake tree.
 """
@@ -30,6 +49,7 @@ import json
 import re
 import sys
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 from _skill_lint import parse_frontmatter, FrontmatterError
@@ -72,8 +92,51 @@ H2_RE = re.compile(r"^##\s+(.*?)\s*$", re.MULTILINE)
 H2_VERSION_RE = re.compile(r"(?<![\w.])v" + _VSEG + r"(?![\d.\-A-Za-z])")
 
 NON_VERSION_CHANGELOG_TOKENS = frozenset({"Unreleased"})
+COPILOT_SUFFIX = "-copilot"
+
+# Invariant 8: the outward-facing agent-count claim, e.g. "38-agent ensemble".
+AGENT_CLAIM_RE = re.compile(r"(\d+)-agent")
+
+# Invariant 9: minimum body length (chars, after strip) for the latest entry.
+CHANGELOG_BODY_MIN_CHARS = 100
+# Invariant 10: the release date on a `## [X.Y.Z] - YYYY-MM-DD` heading (ARS
+# headings may append an em-dash summary after the date) and the
+# `- **Last Updated**: YYYY-MM-DD` line in ars-bootstrap. The trailing
+# `(?!\d)` blocks prefix-capturing a longer run (`2026-04-222` must not read
+# as `2026-04-22`, codex re-review P3); the day field then fails the strict
+# ISO gate downstream.
+CHANGELOG_DATE_RE = re.compile(r"\]\s*-\s*(\d{4}-\d{2}-\d{2})(?!\d)")
+LAST_UPDATED_RE = re.compile(
+    r"^\s*-\s*\*\*Last Updated\*\*:\s*(\S+)", re.MULTILINE
+)
+LAST_UPDATED_MAX_DAYS = 7
+# Invariant 11: a version-tagged Key Additions H2, e.g. `## v3.14 Key
+# Additions (...)`. 2-4 segments — headings cite major.minor or a full patch.
+KEY_ADDITIONS_RE = re.compile(
+    r"^##\s+v(\d+(?:\.\d+){1,3})\s+Key Additions", re.MULTILINE
+)
+# A release-entry heading (`## [X.Y.Z]`). Applied per-line by _next_entry_offset
+# (fence-aware), so no MULTILINE — the latest entry's body ends at the next
+# such heading OUTSIDE a code fence, never at a `## ` inside one (codex P2-1).
+# `[Unreleased]` never appears below the latest release entry, so keying on the
+# `[` bracket is sufficient.
+NEXT_ENTRY_RE = re.compile(r"##\s+\[")
+# Strict YYYY-MM-DD guard: date.fromisoformat() accepts compact 20260422 and
+# ISO week dates, so a shape check gates before parsing (codex P2-2).
+ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 PIPELINE_SKILL_NAME = "academic-pipeline"
+
+
+def _parse_iso_date(raw: str) -> date | None:
+    """Strict YYYY-MM-DD → date, else None (bad shape OR impossible date like
+    2026-02-30). Never raises — a release lint reports drift, never crashes."""
+    if not ISO_DATE_RE.match(raw):
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
 
 
 def _version_tuple(token: str) -> tuple[int, ...]:
@@ -90,6 +153,11 @@ def _version_le(a: str, b: str) -> bool:
 
 def _is_strict_semver(token: str) -> bool:
     return bool(SEMVER_STRICT_RE.match(token))
+
+
+def _source_version(token: str) -> str:
+    """Normalize the Copilot distribution suffix to the upstream source semver."""
+    return token[:-len(COPILOT_SUFFIX)] if token.endswith(COPILOT_SUFFIX) else token
 
 
 def _parse_table_versions(
@@ -123,36 +191,72 @@ def _parse_suite_version(claude_md_text: str) -> tuple[str | None, str | None]:
     if m is None:
         return None, None
     raw = m.group(1)
-    if _is_strict_semver(raw):
-        return raw, None
+    normalized = _source_version(raw)
+    if _is_strict_semver(normalized):
+        return normalized, None
     return None, raw
 
 
 def _parse_changelog_latest(
     changelog_text: str,
-) -> tuple[str | None, str | None]:
-    """Return (valid_latest, invalid_raw_token).
+) -> tuple[str | None, str | None, str | None, str]:
+    """Return (valid_latest, invalid_raw_token, latest_date, latest_body).
 
     Walks `## [TOKEN]` headings in document order, skipping pseudo-entries
     like `[Unreleased]`. The first remaining heading is the latest release.
     If that heading's token is not a canonical version, it is returned as
     `invalid_raw_token` so the caller flags it instead of silently falling
     through to a predecessor and hiding the malformed release entry.
+
+    For a valid latest entry, `latest_date` is the heading's YYYY-MM-DD (None
+    when absent — invariant 10 flags that) and `latest_body` is the text up to
+    the next release heading (invariant 9); `### ` sub-headings and any `## `
+    line inside a fenced code block stay INSIDE the body.
     """
     for m in CHANGELOG_TOKEN_RE.finditer(changelog_text):
         raw = m.group(1)
         if raw in NON_VERSION_CHANGELOG_TOKENS:
             continue
-        if _is_strict_semver(raw):
-            return raw, None
-        return None, raw
-    return None, None
+        normalized = _source_version(raw)
+        if not _is_strict_semver(normalized):
+            return None, raw, None, ""
+        line_end = changelog_text.find("\n", m.end())
+        if line_end == -1:
+            line_end = len(changelog_text)
+        heading_line = changelog_text[m.start():line_end]
+        date_m = CHANGELOG_DATE_RE.search(heading_line)
+        body = changelog_text[line_end : _next_entry_offset(changelog_text, line_end)]
+        return normalized, None, date_m.group(1) if date_m else None, body
+    return None, None, None, ""
 
 
-def check(root: Path) -> list[str]:
+def _next_entry_offset(text: str, start: int) -> int:
+    """Offset of the next release heading (`## [`) at or after `start`, skipping
+    any that fall inside a ``` fenced code block. A code sample in the release
+    notes can contain a line that looks exactly like a release heading (even
+    `## [example] - 2020-01-01`), which must NOT truncate the entry body
+    (codex P2-1 + re-review). Returns len(text) when none remains."""
+    in_fence = False
+    i = start
+    n = len(text)
+    while i < n:
+        line_end = text.find("\n", i)
+        if line_end == -1:
+            line_end = n
+        line = text[i:line_end]
+        stripped = line.lstrip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fence = not in_fence
+        elif not in_fence and NEXT_ENTRY_RE.match(line):
+            return i
+        i = line_end + 1
+    return n
+
+
+def check(root: Path, tag: str | None = None) -> list[str]:
     errors: list[str] = []
 
-    claude_md = root / ".claude" / "CLAUDE.md"
+    claude_md = root / "skills" / "ars-bootstrap" / "SKILL.md"
     if not claude_md.is_file():
         errors.append(f"{claude_md}: not found")
         return errors
@@ -182,11 +286,13 @@ def check(root: Path) -> list[str]:
         )
 
     changelog = root / "CHANGELOG.md"
+    latest_date: str | None = None
+    latest: str | None = None
     if not changelog.is_file():
         errors.append(f"{changelog}: not found")
     else:
-        latest, invalid_latest = _parse_changelog_latest(
-            changelog.read_text(encoding="utf-8")
+        latest, invalid_latest, latest_date, latest_body = (
+            _parse_changelog_latest(changelog.read_text(encoding="utf-8"))
         )
         if latest is None and invalid_latest is None:
             errors.append(f"{changelog}: no '## [X.Y.Z]' entry found")
@@ -200,6 +306,25 @@ def check(root: Path) -> list[str]:
                 f"{claude_md}: Suite version {suite_version!r} does not match "
                 f"CHANGELOG latest entry {latest!r}"
             )
+        # Invariant 9: the latest entry must carry real release notes.
+        if latest is not None:
+            body_len = len(latest_body.strip())
+            if body_len < CHANGELOG_BODY_MIN_CHARS:
+                errors.append(
+                    f"{changelog}: latest entry [{latest}] body is {body_len} "
+                    f"chars — release notes must be >= "
+                    f"{CHANGELOG_BODY_MIN_CHARS} chars"
+                )
+
+    # Invariant 10: ars-bootstrap "Last Updated" within ±7 days of the
+    # latest CHANGELOG entry's date. Skipped while the CHANGELOG itself is
+    # missing/malformed — those already errored above.
+    if latest is not None:
+        errors.extend(
+            _check_last_updated_freshness(
+                claude_md, claude_text, changelog, latest_date
+            )
+        )
 
     for skill_name, table_version in sorted(table_versions.items()):
         skill_md = root / skill_name / "SKILL.md"
@@ -246,10 +371,42 @@ def check(root: Path) -> list[str]:
         errors.extend(_check_readme_badge(root, suite_version))
         # Invariant 6: docs/ must not cite a version above the suite version.
         errors.extend(_check_docs_versions(root, suite_version))
+        # Invariant 11: newest Key Additions heading matches the suite version.
+        errors.extend(_check_key_additions(claude_md, claude_text, suite_version))
+
+    # Tag gate: the pushed tag (when given) must equal the suite version. This
+    # runs OUTSIDE the `suite_version is not None` block on purpose: `--tag`
+    # promises the tag is verified at tag time, so a missing/malformed suite
+    # version must surface as "tag uncheckable" (a hard error naming the tag),
+    # never a silent pass — otherwise a garbage tag co-occurring with a broken
+    # bootstrap would slip through the one gate meant to catch it.
+    if tag is not None:
+        tag_token = tag[1:] if tag.startswith("v") else tag
+        if not tag_token.endswith(COPILOT_SUFFIX):
+            errors.append(
+                f"tag {tag!r} must use the Copilot release suffix {COPILOT_SUFFIX!r}"
+            )
+        tag_version = _source_version(tag_token)
+        if suite_version is None:
+            errors.append(
+                f"tag {tag!r} cannot be verified: ars-bootstrap has no "
+                "usable Suite version to compare against (fix the suite "
+                "version before tagging)"
+            )
+        elif tag_version != suite_version:
+            errors.append(
+                f"tag {tag!r} does not match suite version "
+                f"{suite_version!r} (CHANGELOG latest entry / "
+                "ars-bootstrap must be promoted before tagging)"
+            )
 
     # Invariant 7: en<->zh-TW version-bearing-heading parity (independent of
     # suite version; pairs each docs/*.md with its docs/*.zh-TW.md sibling).
     errors.extend(_check_zhtw_heading_parity(root))
+
+    # Invariant 8: plugin.json "N-agent" description claim equals the tree's
+    # unique *_agent.md count (independent of suite version).
+    errors.extend(_check_agent_count_claim(root))
 
     return errors
 
@@ -343,6 +500,11 @@ def _check_docs_versions(root: Path, suite_version: str) -> list[str]:
     if not docs.is_dir():
         return errors  # docs/ optional; absence is not drift
     for md in sorted(docs.rglob("*.md")):
+        # docs/superpowers/ holds skill working files (specs/plans) that
+        # deliberately plan the NEXT release — forward references are their
+        # job, not a published-doc drift. Invariant 6 gates published docs.
+        if "superpowers" in md.relative_to(docs).parts:
+            continue
         text = md.read_text(encoding="utf-8")
         for raw in DOCS_VERSION_RE.findall(text):
             if not _is_strict_semver(raw):
@@ -407,6 +569,113 @@ def _check_zhtw_heading_parity(root: Path) -> list[str]:
     return errors
 
 
+def _check_last_updated_freshness(
+    claude_md: Path,
+    claude_text: str,
+    changelog: Path,
+    latest_date: str | None,
+) -> list[str]:
+    """Invariant 10: the "Last Updated" date in ars-bootstrap lies within
+    ±7 days of the latest CHANGELOG entry's date. The CHANGELOG date is the
+    baseline — never "today" — so the same commit checks identically whenever
+    the lint re-runs."""
+    m = LAST_UPDATED_RE.search(claude_text)
+    if m is None:
+        return [
+            f"{claude_md}: missing '- **Last Updated**: YYYY-MM-DD' line"
+        ]
+    raw = m.group(1)
+    last_updated = _parse_iso_date(raw)
+    if last_updated is None:
+        return [
+            f"{claude_md}: Last Updated {raw!r} is not a valid YYYY-MM-DD date"
+        ]
+    if latest_date is None:
+        return [
+            f"{changelog}: latest entry has no '- YYYY-MM-DD' date — cannot "
+            "check Last Updated freshness against it"
+        ]
+    changelog_date = _parse_iso_date(latest_date)
+    if changelog_date is None:
+        return [
+            f"{changelog}: latest entry date {latest_date!r} is not a valid "
+            "YYYY-MM-DD date"
+        ]
+    delta = abs((last_updated - changelog_date).days)
+    if delta > LAST_UPDATED_MAX_DAYS:
+        return [
+            f"{claude_md}: Last Updated {raw} is {delta} days from the "
+            f"CHANGELOG latest entry date {latest_date} (must be within "
+            f"±{LAST_UPDATED_MAX_DAYS} days)"
+        ]
+    return []
+
+
+def _check_key_additions(
+    claude_md: Path, claude_text: str, suite_version: str
+) -> list[str]:
+    """Invariant 11: the newest version-tagged "Key Additions" H2 in
+    ars-bootstrap matches the suite version. Newest = max by version
+    tuple (the sections are not guaranteed document-ordered). Comparison is
+    at the heading's own precision, so `## v3.14 Key Additions` matches suite
+    3.14.0 while a stale `## v3.13 ...` as the maximum fails. Historical
+    headings below the newest are untouched."""
+    versions = KEY_ADDITIONS_RE.findall(claude_text)
+    if not versions:
+        return [
+            f"{claude_md}: no '## vX.Y… Key Additions' heading found — the "
+            "release's Key Additions section is missing"
+        ]
+    newest = max(versions, key=_version_tuple)
+    newest_t = _version_tuple(newest)
+    if _version_tuple(suite_version)[: len(newest_t)] != newest_t:
+        return [
+            f"{claude_md}: newest Key Additions heading cites v{newest} but "
+            f"the suite version is {suite_version!r}"
+        ]
+    return []
+
+
+def _check_agent_count_claim(root: Path) -> list[str]:
+    """Invariant 8 (#414): when plugin.json's description advertises an
+    "N-agent" count, N must equal the number of unique *_agent.md files in
+    the tree. The plugin-root agents/ mirror dir is excluded — its files are
+    byte-identical aliases of deep-research agents (real copies since #413,
+    symlinks before; check_agents_mirror_sync.py pins the byte-equality), so
+    counting them would double-count. resolve() additionally dedups any
+    remaining symlink alias. Missing/malformed manifest or a description
+    without a count claim is NOT an invariant-8 error — the manifest problems
+    are invariant 4's to report, and the claim is optional (only a stated
+    number must be true)."""
+    plugin_json = root / ".claude-plugin" / "plugin.json"
+    if not plugin_json.is_file():
+        return []
+    try:
+        data = json.loads(plugin_json.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, ValueError):
+        return []
+    description = data.get("description")
+    if not isinstance(description, str):
+        return []
+    m = AGENT_CLAIM_RE.search(description)
+    if m is None:
+        return []
+    claimed = int(m.group(1))
+    actual = len({
+        p.resolve()
+        for p in root.rglob("*_agent.md")
+        if ".git" not in p.parts
+        and p.relative_to(root).parts[0] != "agents"  # plugin-root mirror = aliases (#413)
+    })
+    if claimed != actual:
+        return [
+            f"{plugin_json}: description claims {claimed}-agent but the tree "
+            f"has {actual} unique *_agent.md files (agents/ mirror aliases "
+            f"excluded, symlinks deduplicated)"
+        ]
+    return []
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -414,9 +683,14 @@ def main() -> int:
         type=Path,
         default=Path(__file__).resolve().parent.parent,
     )
+    parser.add_argument(
+        "--tag",
+        help="Copilot git tag ref (e.g. v3.17.0-copilot, leading 'v' optional); "
+        "source semver must equal the suite version",
+    )
     args = parser.parse_args()
 
-    errors = check(args.path)
+    errors = check(args.path, tag=args.tag)
     if errors:
         print("Version consistency check failed:")
         for err in errors:

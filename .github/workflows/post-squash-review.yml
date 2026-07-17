@@ -25,7 +25,7 @@ name: Post-Squash Codex Review (Advisory)
 on:
   pull_request:
     types: [closed]
-    branches: [main]
+    branches: [copilot-main]
 
 concurrency:
   group: post-squash-review-${{ github.ref }}-${{ github.event_name }}

@@ -201,7 +201,9 @@ def test_wrapper_dispatches_end_to_end(tmp_path):
     output_dir = repo / output_dir_rel
 
     env = os.environ.copy()
-    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+    # Hermetic tool path: do not inherit user-level command shims (notably a
+    # safety-wrapped `rm`) into a test of the wrapper's own lifecycle.
+    env["PATH"] = f"{bin_dir}{os.pathsep}{os.defpath}"
 
     result = subprocess.run(
         [
@@ -303,7 +305,7 @@ def test_wrapper_dry_run_writes_nothing(tmp_path):
     output_dir = repo / output_dir_rel
 
     env = os.environ.copy()
-    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+    env["PATH"] = f"{bin_dir}{os.pathsep}{os.defpath}"
 
     result = subprocess.run(
         [
@@ -345,7 +347,7 @@ def test_wrapper_rejects_round_2_without_previous_findings(tmp_path):
     deliverable = _make_synthetic_deliverable(repo)
 
     env = os.environ.copy()
-    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+    env["PATH"] = f"{bin_dir}{os.pathsep}{os.defpath}"
 
     result = subprocess.run(
         [

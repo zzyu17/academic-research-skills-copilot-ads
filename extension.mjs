@@ -194,7 +194,7 @@ const session = await joinSession({
         const routing = modelRoutingHint("execution");
         const userPrompt = resolveUserPrompt(context, false);
         const visiblePrompt = buildVisibleSlashPrompt(context, userPrompt);
-        pendingDispatchContext = `[ARS] Rescind human-read signal for citation keys. Run: python3 scripts/ars_unmark_read.py with the active Material Passport path. Per v3.6.8 §3.6.${routing}`;
+        pendingDispatchContext = `[ARS] Rescind human-read signal for citation keys after validating every citation_key against literature_corpus[]. Run: python3 scripts/ars_unmark_read.py with the active Material Passport path. Per v3.6.8 §3.6, updates <passport-stem>_human_read_log.yaml and NEVER mutates literature_corpus[].${routing}`;
         await session.send({
           prompt: visiblePrompt,
         });

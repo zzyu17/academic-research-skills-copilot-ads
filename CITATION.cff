@@ -1,0 +1,33 @@
+# This CITATION.cff describes how to cite this specific version of the software.
+# The license field reflects the license of THIS version, not a permanent
+# project-wide commitment — future versions may carry different terms.
+# See https://citation-file-format.github.io/ for the schema.
+cff-version: 1.2.0
+title: Academic Research Skills for Copilot CLI
+message: >-
+  If you use this software in your research, please cite it
+  using the metadata from this file.
+type: software
+authors:
+  - family-names: Wu
+    given-names: Cheng-I
+  - family-names: Zhang
+    given-names: Zhenyu
+repository-code: https://github.com/zzyu17/academic-research-skills-copilot
+url: https://github.com/zzyu17/academic-research-skills-copilot
+abstract: >-
+  A source-available academic research copilot framework for
+  noncommercial scholarly use. A Copilot CLI distribution that
+  assists human researchers through the full research-to-publication
+  pipeline: research, write, integrity-check, review, revise, finalize.
+keywords:
+  - academic-research
+  - copilot-cli
+  - research-workflow
+  - literature-review
+  - citation-verification
+  - peer-review
+  - scholarly-writing
+license: CC-BY-NC-4.0
+version: 3.17.0-copilot
+date-released: 2026-07-17

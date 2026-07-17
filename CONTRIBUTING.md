@@ -6,7 +6,7 @@ Thank you for your interest in contributing. This document explains what kinds o
 
 ## How to submit a contribution
 
-ARS uses the standard **fork-and-PR** workflow. Fork the repo on GitHub, clone your fork, create a branch, make your changes, push to your fork, then open a PR against `Imbad0202/academic-research-skills`.
+ARS uses the standard **fork-and-PR** workflow. Fork the repo on GitHub, clone your fork, create a branch, make your changes, push to your fork, then open a PR against `zzyu17/academic-research-skills-copilot`.
 
 **Important**: You cannot push directly to this repo — you must fork it first and submit a PR from your fork.
 
@@ -42,19 +42,9 @@ Open an issue first before submitting a PR for these:
 - **Handoff schema changes** — modifications to `shared/handoff_schemas.md`
 - **New skills or modes** — additions to the pipeline
 
-### Platform ports (community-maintained only)
+### Upstream and platform-specific changes
 
-This repository is the reference distribution of ARS, built for Claude Code. Ports to other agent platforms (Opencode, Cursor, Continue, Aider, etc.) are accepted as community-maintained contributions. Two structural shapes are acceptable — both keep core ARS content as the source of truth:
-
-- **In-tree wrapper.** Add a top-level `<platform>/` directory in this repo (e.g. `opencode/`) containing the manifest, plugin entry, and dispatch shims. Core ARS files (`skills/*/SKILL.md`, `agents/*.md`, `shared/`, `scripts/`) remain unmodified.
-- **Sibling distribution.** A separate repository that vendors ARS workflow content with: (1) upstream commit hash pinned (e.g. in a `manifest.json`); (2) a written update / sync policy; (3) vendored content unmodified — only the outer routing / adapter layer is platform-specific.
-
-Either shape is accepted under the same maintainer-facing conditions:
-
-- **Named maintainer.** The PR description (in-tree) or repo README (sibling) must identify who will keep the port in sync with ARS minor releases (~6-week cadence) and triage platform-specific bug reports. Platform-specific issues will be redirected to that maintainer.
-- **End-to-end evidence.** Include at least one full `academic-pipeline` run on the target platform, committed under `examples/<platform>/` (in-tree) or under an `examples/` path in the sibling repo, so regressions are detectable.
-- **Model-portability note.** ARS prompts are calibrated against Claude (Opus for architecture/review, Sonnet for execution; never Haiku). The PR must document which providers/models were tested and where downstream-agent behavior diverged from the Claude baseline.
-- **Open a design issue first** before submitting the PR (for in-tree) or before requesting sibling-distribution recognition in this repo's README.
+This repository is the community-maintained Copilot CLI sibling distribution. Portable workflow, agent, schema, and research-method changes should normally be proposed to the [Claude Code reference distribution](https://github.com/Imbad0202/academic-research-skills) first, then ported here through [`docs/UPDATE-AND-PORT-WORKFLOW.md`](docs/UPDATE-AND-PORT-WORKFLOW.md). Copilot-specific changes belong here when they affect `extension.mjs`, `ars-bootstrap`, plugin packaging, SDK hook behavior, or Copilot documentation/tests. New ports for additional platforms should be maintained in their own sibling distribution rather than nested inside this adapter.
 
 ---
 
@@ -64,7 +54,7 @@ Either shape is accepted under the same maintainer-facing conditions:
 - **Describe what and why** — explain the motivation, not just the change
 - **Reference issues** — if your PR addresses an open issue, link it
 - **Test your changes** — if you're modifying agent definitions, try running the skill to confirm it works as expected
-- **Keep READMEs in sync** — if your change affects user-facing documentation, update `README.md`, `README.zh-CN.md`, `README.zh-TW.md`, and `README.ja-JP.md` when applicable
+- **Keep READMEs in sync** — if your change affects user-facing documentation, update `README.md`, `README.zh-CN.md`, `README.zh-TW.md`, `README.ja-JP.md`, and `README.ko-KR.md` when applicable
 
 ---
 
@@ -80,6 +70,20 @@ The repo is maintained by [Zhenyu Zhang](https://github.com/zzyu17) (HEEACT). Th
 2. **Human-in-the-loop always** — contributions that reduce human oversight or enable fully autonomous paper generation will be declined
 3. **No detection evasion** — features designed to make AI-generated text harder to detect (as opposed to higher quality) are out of scope. See [Issue #3](https://github.com/Imbad0202/academic-research-skills/issues/3) for context.
 4. **Discipline diversity welcome** — ARS defaults to higher education research but aims to be domain-agnostic. Discipline-specific modules are encouraged.
+
+---
+
+## Release checklist
+
+CI enforces most release mechanics. `scripts/check_version_consistency.py` keeps
+`skills/ars-bootstrap/SKILL.md`, product SKILL versions, CHANGELOG, plugin manifests, and
+the README badge aligned; the tag gate requires the `vX.Y.Z-copilot` form. Before tagging,
+run `python3 scripts/check_changelog_covers_merges.py` from the release-prep state and
+resolve every release-worthy merge that is not documented above the previous release.
+
+When a release contains issues found through use on a real paper, add a
+`Real-use findings` subsection to that release's CHANGELOG entry. Name the run that surfaced
+each issue; omit the subsection when there were no such findings.
 
 ---
 
