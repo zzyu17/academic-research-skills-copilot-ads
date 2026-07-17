@@ -24,11 +24,12 @@ COVERAGE CLAIM — stated precisely, NOT over-promised (spec §3.3 / §7):
   making the #133 shape (a helpful agent calling a write tool into a downstream phase dir)
   deterministically impossible, and closing the direct-shell-write path for Bucket A entirely.
 
-The testable core is `evaluate_decision(payload, manifest, workspace_root)` — a pure
+The testable core is `evaluate_decision(payload, manifest, workspace_root, plugin_root)` — a pure
 function. `main()` only wires stdin -> evaluate_decision -> stdout JSON.
 
 PAYLOAD CONTRACT (stdin JSON):
   Required fields: tool_name, tool_input (dict), cwd.
+  Copilot bridge field: plugin_root (str) — anchors protection to the installed ARS tree.
   Optional: agent_type (str) — the subagent frontmatter `name` (e.g. "bibliography_agent").
   Copilot CLI does not expose agent_type in hook inputs; when absent, Bucket A per-agent
   fencing is inactive but infrastructure self-protection (Step 2) still operates.
@@ -82,6 +83,7 @@ INFRA_PROTECTED_GLOBS = [
     "academic-paper-reviewer/agents/*.md",
     "academic-pipeline/agents/*.md",
     "shared/agents/*.md",
+    "agents/*.md",
 ]
 
 
@@ -179,7 +181,11 @@ def _matches_any(rel_path, globs):
                     workspace root, the INFRA list carries both `**/name` and the bare
                     `name` (a deny-list, so widening is safe — see INFRA_PROTECTED_GLOBS).
     """
-    segs = [s for s in rel_path.split(os.sep) if s not in ("", ".")]
+    # Patterns always use `/`. On Windows only, normalize the separator emitted by
+    # os.path.relpath; on POSIX a backslash remains a legal filename character.
+    if os.sep == "\\":
+        rel_path = rel_path.replace("\\", "/")
+    segs = [s for s in rel_path.split("/") if s not in ("", ".")]
     for g in globs:
         pat = [s for s in g.split("/") if s != ""]
         if _match_segments(segs, pat):
@@ -187,9 +193,30 @@ def _matches_any(rel_path, globs):
     return False
 
 
-def _infra_protected(rel_path):
-    """Step 2 — is the normalized target part of the enforcement surface?"""
-    return _matches_any(rel_path, INFRA_PROTECTED_GLOBS)
+def _infra_protected_target(raw_path, cwd, plugin_root):
+    """Return whether a target is ARS enforcement infrastructure.
+
+    Infrastructure is anchored to the installed plugin root, not the user's project
+    root. This protects the real extension/guard files without false-denying a user's
+    unrelated file that happens to share a name such as ``extension.mjs``.
+    """
+    if not plugin_root:
+        return False
+    candidate = raw_path
+    if not os.path.isabs(candidate):
+        candidate = os.path.join(cwd, candidate)
+    normalized = os.path.realpath(candidate)
+    real_plugin = os.path.realpath(plugin_root)
+    try:
+        common = os.path.commonpath([normalized, real_plugin])
+    except ValueError:
+        return False
+    if common != real_plugin:
+        return False
+    rel = os.path.relpath(normalized, real_plugin)
+    if rel == ".":
+        return False
+    return _matches_any(rel, INFRA_PROTECTED_GLOBS)
 
 
 def _allow_unconstrained(agent_type):
@@ -224,7 +251,7 @@ def _extract_structured_target(tool_input):
     return fp if isinstance(fp, str) and fp else None
 
 
-def evaluate_decision(payload, manifest, workspace_root):
+def evaluate_decision(payload, manifest, workspace_root, plugin_root=None):
     """Pure decision function implementing the spec §3.2 logic (Bash policy per §7).
 
     Returns a dict: {"decision": "allow"|"deny", "reason": str, ...advisory flags}.
@@ -237,6 +264,8 @@ def evaluate_decision(payload, manifest, workspace_root):
     """
     # The pure core defends itself too — not only main() — so a non-dict payload (`[]`,
     # null, a string) passed straight to evaluate_decision can't crash on `.get` (review).
+    if not plugin_root:
+        plugin_root = workspace_root
     if not isinstance(payload, dict):
         return {"decision": "allow", "reason": ""}
     tool_name = _normalize_tool_name(payload.get("tool_name", ""))
@@ -281,6 +310,15 @@ def evaluate_decision(payload, manifest, workspace_root):
                        "fail-open. Re-verify the tool_input shape."),
             "schema_drift_advisory": True,
         }
+    # Step 2 is anchored to the ARS installation. It runs before workspace escape
+    # handling because plugin files normally live outside the user's project root.
+    if _infra_protected_target(raw, cwd, plugin_root):
+        return {
+            "decision": "deny",
+            "reason": "ARS scope guard: target is part of the plugin enforcement "
+                      "infrastructure and may not be written by any agent.",
+        }
+
     rel, escaped = _normalize_target(raw, cwd, workspace_root)
     if escaped:
         # The escape / path-traversal deny is a BUCKET A FENCE, not a global one (#302).
@@ -302,14 +340,6 @@ def evaluate_decision(payload, manifest, workspace_root):
                            "workspace root (path traversal) — denied."),
             }
         return _allow_unconstrained(agent_type)
-
-    # --- Step 2: infrastructure self-protection (unconditional, on the normalized path). ---
-    if _infra_protected(rel):
-        return {
-            "decision": "deny",
-            "reason": (f"ARS scope guard: {rel} is part of the enforcement "
-                       "infrastructure and may not be written by any agent."),
-        }
 
     # --- Step 3: agent gating. ---
     if not is_bucket_a:
@@ -380,7 +410,12 @@ def main():
         print(render_output({"decision": "allow", "reason": ""}))
         return 0
 
-    decision = evaluate_decision(payload, manifest, workspace_root)
+    # The extension supplies its resolved install root explicitly. The script-location
+    # fallback keeps direct CLI tests and development invocations deterministic.
+    plugin_root = payload.get("plugin_root") or os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    )
+    decision = evaluate_decision(payload, manifest, workspace_root, plugin_root)
 
     # Surface fail-loud advisories to stderr (visible to the user/transcript), never silent.
     if decision.get("absent_agent_type_advisory"):

@@ -1,6 +1,6 @@
 // extension.mjs — ARS Copilot CLI Extension
 // =============================================================================
-// Slash commands (14) + lifecycle hooks (onSessionStart, onPreToolUse,
+// Slash commands (16) + lifecycle hooks (onSessionStart, onPreToolUse,
 // onErrorOccurred). onPreToolUse hosts the scoped-write guard.
 //
 // Uses Copilot CLI SDK: import { joinSession } from "@github/copilot-sdk/extension"
@@ -8,24 +8,17 @@
 // =============================================================================
 
 import { joinSession } from "@github/copilot-sdk/extension";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { createModelRoutingHint, runGuard } from "./scripts/copilot_runtime.mjs";
+
+const pluginRoot = dirname(fileURLToPath(import.meta.url));
+const modelRoutingHint = createModelRoutingHint();
 
 // -----------------------------------------------------------------------------
 // Model routing helpers
 // -----------------------------------------------------------------------------
-
-function getModelTier(tier) {
-  if (tier === "architect") return process.env.ARS_MODEL_ARCHITECT || null;
-  if (tier === "execution") return process.env.ARS_MODEL_EXECUTION || null;
-  return null;
-}
-
-function modelRoutingHint(tier) {
-  const model = getModelTier(tier);
-  if (model) {
-    return `\n\n[Model routing: use task({model: "${model}"}) for subagent dispatches.]`;
-  }
-  return "";
-}
 
 const RECENT_PROMPT_WINDOW_MS = 5000;
 let lastUserPrompt = "";
@@ -147,6 +140,20 @@ const session = await joinSession({
       },
     },
     {
+      name: "ars-3w",
+      description: "WHY / HOW / WHAT paper comparison plus cross-paper synthesis",
+      handler: async (context) => {
+        await dispatchSkillCommand(context, "deep-research", "three-way-scan", "execution");
+      },
+    },
+    {
+      name: "ars-rebuttal-audit",
+      description: "QA an existing rebuttal draft against reviewer comments",
+      handler: async (context) => {
+        await dispatchSkillCommand(context, "academic-paper", "rebuttal-audit", "execution");
+      },
+    },
+    {
       name: "ars-format-convert",
       description: "Convert paper between LaTeX / DOCX / PDF / Markdown",
       handler: async (context) => {
@@ -236,59 +243,16 @@ const session = await joinSession({
       // Platform gap: Copilot CLI hooks do not expose agent_type/subagent
       // context. The guard's Bucket A per-agent fencing is therefore inactive;
       // infrastructure self-protection (Step 2 — deny writes to guard scripts,
-      // agent definitions, extension.mjs, etc.) still operates.
+      // agent definitions, extension.mjs, etc.) still operates. Bucket A Bash
+      // denial also requires agent identity and is therefore unavailable here.
       // -------------------------------------------------------------------
       const writeTools = ['create', 'edit', 'bash', 'write'];
       if (!writeTools.includes((input.toolName || '').toLowerCase())) return {};
 
-      const { spawnSync } = await import('child_process');
-      const path = await import('path');
-
-      const scriptPath = path.join(__dirname, 'scripts', 'ars_write_scope_guard.py');
-      const cwd = input.workingDirectory || process.cwd();
-
-      // Construct the guard payload and pipe via stdin.
       // agent_type is deliberately omitted — Copilot CLI hooks lack subagent
-      // context. The guard will skip Bucket A fencing (Step 3-4) and enforce
-      // only infrastructure self-protection (Step 2) + Bash deny for Bucket A.
-      const payload = JSON.stringify({
-        tool_name: input.toolName,
-        tool_input: input.toolArgs || {},
-        cwd: cwd,
-      });
-
-      try {
-        const result = spawnSync('python3', [scriptPath], {
-          input: payload,
-          timeout: 5000,
-          encoding: 'utf8',
-          maxBuffer: 64 * 1024,
-        });
-
-        if (result.error) {
-          console.error('[ars-write-guard] spawn error:', result.error.message);
-          return {};
-        }
-
-        const stdout = (result.stdout || '').trim();
-        if (!stdout) return {};
-
-        // Parse guard output: {"blocked": true, "reason": "..."} or {"blocked": false}
-        const parsed = JSON.parse(stdout);
-        if (parsed.blocked) {
-          return {
-            permissionDecision: 'deny',
-            permissionDecisionReason:
-              parsed.reason || 'Write blocked by ARS scope guard',
-          };
-        }
-        // Pass-through: no permissionDecision key → normal permission flow
-        return {};
-      } catch (e) {
-        // Guard failure must not block the tool — log and pass through
-        console.error('[ars-write-guard] Error:', e.message);
-        return {};
-      }
+      // context. The guard enforces plugin infrastructure self-protection; the
+      // per-agent Bucket A fence remains unavailable at this hook boundary.
+      return runGuard(input, { pluginRoot });
     },
 
     onErrorOccurred: async (input) => {
