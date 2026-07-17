@@ -471,13 +471,12 @@ def test_anti_self_baseline_guard_rejects_manifest_mutation_in_pr(monkeypatch) -
     subtle touch-and-revert pattern; that layer is exercised by the
     `test_anti_self_baseline_guard_history_scan_called` test below.
 
-    GITHUB_BASE_REF is set explicitly so the guard exits the "advisory mode"
-    branch (no PR base detectable → guard returns advisory pass). On
-    GitHub `push` event runs, GITHUB_BASE_REF is unset and origin/HEAD
-    resolution may fail; this test injects the env var so the guard's
-    real reject path is exercised regardless of trigger event.
+    GITHUB_BASE_REF is set explicitly to the universally reachable HEAD ref so
+    the guard exits the "advisory mode" branch without depending on a local or
+    distribution-repository branch name. This exercises the real reject path
+    consistently in maintainer checkouts and GitHub Actions.
     """
-    monkeypatch.setenv("GITHUB_BASE_REF", "copilot-main")
+    monkeypatch.setenv("GITHUB_BASE_REF", "HEAD")
     with _Snapshot(V3_6_7_MANIFEST):
         text = V3_6_7_MANIFEST.read_text(encoding="utf-8")
         # Mutate `rationale_doc` so the byte-equivalence check fires while
@@ -518,11 +517,11 @@ def test_anti_self_baseline_guard_history_scan_called(monkeypatch) -> None:
     `git log merge-base..HEAD -- manifest` result and asserts the guard
     rejects when commits ARE listed (touch-and-revert simulation).
 
-    GITHUB_BASE_REF is set so the guard's "no PR base detectable → advisory
-    pass" branch is bypassed (matters on `push` event CI where the env var
-    is normally absent).
+    GITHUB_BASE_REF is set to the universally reachable HEAD ref so the guard's
+    "no PR base detectable → advisory pass" branch is bypassed without
+    coupling the test to a repository-specific branch name.
     """
-    monkeypatch.setenv("GITHUB_BASE_REF", "copilot-main")
+    monkeypatch.setenv("GITHUB_BASE_REF", "HEAD")
     from scripts import check_v3_6_8_pattern_protection as mod
 
     real_run_git = mod._run_git
