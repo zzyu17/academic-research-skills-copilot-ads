@@ -66,7 +66,6 @@ PREPRINT_VENUES = frozenset({
     "EarthArXiv",
     "OSF Preprints",
     "TechRxiv",
-    "ADS",
 })
 
 

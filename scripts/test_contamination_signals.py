@@ -85,6 +85,10 @@ class PreprintSignalTest(unittest.TestCase):
             cs.compute_preprint_signal({"year": 2024, "venue": "Nature"})
         )
 
+    def test_ads_index_2024_returns_false(self) -> None:
+        """ADS is a bibliographic index, not one of the 10 preprint venues."""
+        self.assertFalse(cs.compute_preprint_signal({"year": 2024, "venue": "ADS"}))
+
     def test_missing_venue_returns_false(self) -> None:
         # Defensive: entries lacking venue cannot satisfy the AND
         self.assertFalse(cs.compute_preprint_signal({"year": 2024}))
