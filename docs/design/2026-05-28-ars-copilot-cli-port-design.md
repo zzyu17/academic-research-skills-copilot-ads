@@ -166,6 +166,10 @@ All `shared/` content (43 files) is vendored unmodified:
 
 ### 3.9 Optional Feature Flags
 
+`ARS_PASSPORT_RESET` behavior remains governed by
+`academic-pipeline/references/passport_as_reset_boundary.md`; the Copilot
+adapter changes only how the flag is read and dispatched.
+
 | # | Flag | Copilot CLI Support | Status |
 |---|------|-------------------|--------|
 | F1 | `ARS_PASSPORT_RESET=1` | Read from `process.env` in extension and in skill instructions. Identical behavior: FULL checkpoints promote to context-reset boundaries. | ✅ Identical |
