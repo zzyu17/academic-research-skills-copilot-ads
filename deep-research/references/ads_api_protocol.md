@@ -64,7 +64,7 @@ A citation with **no bibcode** is `skipped` (not `unmatched`) — the resolver d
 
 ## ADS-specific notes
 
-- **Applicability is bibcode-gated.** A citation with no bibcode is only checked by title search; the unified summary treats ADS as `skipped` (not `unmatched`) for non-astronomy published work.
+- **Applicability is bibcode-gated.** The contamination-signal resolver skips a citation with no bibcode and omits `ads_unmatched`. A separate astronomy-specific verification pass may use ADS title search for discovery, but a title-only miss does not emit this signal.
 - **Auth is mandatory.** Unlike S2 (optional key) or arXiv (anonymous), ADS requires `ADS_API_TOKEN` for all API access. Get one free at https://ui.adsabs.harvard.edu/user/settings/token.
 - **JSON, not XML.** Mirrors OpenAlex/Crossref/S2 clients structurally; the only divergence from the arXiv client.
 
