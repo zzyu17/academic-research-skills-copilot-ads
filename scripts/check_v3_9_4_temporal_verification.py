@@ -39,7 +39,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = REPO_ROOT / "shared/contracts/passport"
 
 BIBLIOGRAPHY_AGENT_PATH = REPO_ROOT / "deep-research/agents/bibliography_agent.md"
-BIBLIOGRAPHY_AGENT_SHA256 = "554961cf0924c9ae11aa8ed2f2d3c029c7163b81e03c5cd23ac7dd577884c5ed"  # #511 Part A baseline; F2 ownership guard per spec §3.4 + §3.6. The #511 apply added ONLY the "Omission reason-provenance" paragraph to the Triangulation Extension § Per-API degradation area (contamination_signal_omissions emission contract); NO M6 citation-provenance / M5 version-family / temporal logic added, so the ownership invariant the hash protects is intact. (Previous baseline 39370675… was the #489 harness-retirement B4-F01 state.)
+BIBLIOGRAPHY_AGENT_SHA256 = "40ad189bac2a033ef8086ef2560deffa0735122a909db29aca769411980a0b70"  # ADS-edition baseline; F2 ownership guard per spec §3.4 + §3.6. The ADS port adds only astronomy search-surface guidance to Step 1; it does not add M6 citation-provenance, M5 version-family, or temporal logic, so the ownership invariant remains intact. (Standard v3.17 baseline: 554961cf….)
 
 
 def _validate(yaml_path: Path, schema_path: Path) -> list[str]:

@@ -1084,6 +1084,8 @@ class ResolveArxivQueriedByTest(unittest.TestCase):
         self.assertIs(unmatched, False)
         self.assertEqual(matched_by, "arxiv")
         self.assertEqual(queried_by, "id")
+
+
 # ADS — resolve_ads_unmatched
 # ============================================================================
 
@@ -1156,3 +1158,46 @@ class ResolveAdsUnmatchedTest(unittest.TestCase):
         entry = {"title": "X", "bibcode": "2024ApJ...001A", "obtained_via": "folder-scan"}
         with self.assertRaises(AdsUnavailable):
             resolve_ads_unmatched(entry, mock_client)
+
+
+class BuildSignalsAdsExtensionTest(unittest.TestCase):
+    """ADS remains opt-in while using v3.17 omission provenance."""
+
+    def _entry(self, **overrides):
+        base = {
+            "title": "Test paper",
+            "bibcode": "2024ApJ...001A",
+            "obtained_via": "folder-scan",
+        }
+        return base | overrides
+
+    def _s2_client(self):
+        client = MagicMock()
+        client.lookup.return_value = {"matched": True}
+        return client
+
+    def test_ads_client_emits_ads_field(self):
+        ads = MagicMock()
+        ads.bibcode_lookup.return_value = {"title": "Test paper"}
+        result = cs.build_signals_object(
+            self._entry(), self._s2_client(), ads_client=ads
+        )
+        self.assertIs(result["ads_unmatched"], False)
+
+    def test_no_bibcode_skips_ads_without_network(self):
+        ads = MagicMock()
+        result = cs.build_signals_object(
+            self._entry(bibcode=None), self._s2_client(), ads_client=ads
+        )
+        self.assertNotIn("ads_unmatched", result)
+        ads.bibcode_lookup.assert_not_called()
+        ads.title_search.assert_not_called()
+
+    def test_ads_degradation_records_omission(self):
+        ads = MagicMock()
+        ads.bibcode_lookup.side_effect = cs.AdsUnavailable("down")
+        signals, omissions = cs.build_signals_with_omissions(
+            self._entry(), self._s2_client(), ads_client=ads
+        )
+        self.assertNotIn("ads_unmatched", signals)
+        self.assertEqual(omissions["ads_unmatched"], "api_degraded")

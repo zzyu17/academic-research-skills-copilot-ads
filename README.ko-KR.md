@@ -1,6 +1,6 @@
-# Copilot CLI를 위한 Academic Research Skills
+# Copilot CLI용 Academic Research Skills (ADS 에디션)
 
-[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot/releases/tag/v3.17.0-copilot)
+[![Version](https://img.shields.io/badge/version-v3.17.0--copilot-blue)](https://github.com/zzyu17/academic-research-skills-copilot-ads/releases/tag/v3.17.0-copilot)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20696614-blue)](https://doi.org/10.5281/zenodo.20696614)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Sponsor](https://img.shields.io/badge/sponsor-Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/crucify020v)
@@ -9,11 +9,15 @@
 
 학술 연구를 위한 Copilot CLI 통합 스킬 모음으로, 연구 설계부터 논문 작성·검토·출판 준비까지의 전체 워크플로를 지원합니다.
 
+**이 저장소는 ADS 에디션입니다.** 천문학 및 천체물리학 연구를 위해 SAO/NASA Astrophysics Data System(ADS)을 arXiv와 함께 일급 문헌 소스로 제공합니다. ADS가 없는 표준판은 [표준 배포판](https://github.com/zzyu17/academic-research-skills-copilot)을 참조하세요.
+
+천문학 또는 천체물리학 연구에서는 SAO/NASA ADS 문헌 검색, bibcode 기반 인용 검증, 연구 후 ADS 알림 전략을 사용할 수 있습니다. ADS API 접근을 활성화하려면 `ADS_API_TOKEN`을 설정해야 합니다. 토큰이 없으면 ADS 기능만 정상적으로 축소되고 파이프라인은 arXiv 및 다른 데이터베이스를 계속 사용합니다.
+
 **30초 만에 설치**(Copilot CLI):
 
 ```text
-/plugin marketplace add zzyu17/academic-research-skills-copilot
-/plugin install academic-research-skills@academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 그런 다음 `/ars-plan`을 실행해 소크라테스식 대화로 논문 구조를 짜보거나, 사전 요건과 전통적인 심볼릭 링크 방식을 보려면 [빠른 설치](#빠른-설치)로 이동하세요.
@@ -54,8 +58,8 @@ v3.3은 [**PaperOrchestra**](https://arxiv.org/abs/2604.05018) (Song, Song, Pfis
 **플러그인 설치(v3.7.0+, 권장):**
 
 ```text
-/plugin marketplace add Imbad0202/academic-research-skills
-/plugin install academic-research-skills
+/plugin marketplace add zzyu17/academic-research-skills-copilot-ads
+/plugin install academic-research-skills-ads@academic-research-skills-ads
 ```
 
 **동작 확인:** `/ars-plan`을 실행하고 작업 중인 논문을 설명하세요 — ARS가 소크라테스식 대화를 시작해 논문의 장 구조를 함께 그려 줍니다. 단발성 테스트를 원하면 `/ars-lit-review "your topic"`을 시도하세요.
@@ -80,6 +84,7 @@ v3.3은 [**PaperOrchestra**](https://arxiv.org/abs/2604.05018) (Song, Song, Pfis
 ## 한눈에 보는 기능
 
 - **Deep Research** — 소크라테스식 가이드 모드, PRISMA 체계적 문헌고찰, 의도 감지, 대화 건강도 모니터링, 선택적 교차 모델 DA, Semantic Scholar API 검증을 갖춘 13개 에이전트 연구팀.
+- **ADS 천문학 통합** — arXiv, Crossref, OpenAlex, Semantic Scholar와 함께 SAO/NASA ADS 문헌 검색, bibcode 기반 인용 검증, 문헌 모니터링 전략을 제공합니다.
 - **Academic Paper** — Style Calibration, Writing Quality Check, LaTeX 하드닝, 시각화, 수정 코칭, 인용 변환, anti-leakage 프로토콜, VLM 그림 검증을 갖춘 12개 에이전트 논문 작성.
 - **Academic Paper Reviewer** — 0–100 품질 루브릭(EIC + 동적 리뷰어 3명 + Devil's Advocate), 양보 임계값 프로토콜, 공격 강도 보존, 선택적 교차 모델 DA 비평 / 캘리브레이션, R&R 추적 매트릭스, 읽기 전용 제약을 갖춘 7개 에이전트 다관점 동료 심사.
 - **Academic Pipeline** — 적응형 체크포인트, 주장 검증, Material Passport, 선택적 `repro_lock`, 선택적 교차 모델 무결성 검증, 대화 중 강화, 점수 궤적 추적을 갖춘 10단계 파이프라인 오케스트레이터.
