@@ -13,6 +13,7 @@
       "version": "3.17.0",
       "license": "CC-BY-NC-4.0",
       "skills": [
+        "./skills/ars-bootstrap",
         "./academic-paper",
         "./academic-paper-reviewer",
         "./academic-pipeline",
